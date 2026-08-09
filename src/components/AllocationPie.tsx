@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Cell, Pie, PieChart } from 'recharts';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
@@ -25,7 +25,7 @@ interface AllocationPieProps {
   weeklyLeftover: number;
 }
 
-export function AllocationPie({ expenses, weeklyIncome, weeklyLeftover }: AllocationPieProps) {
+export const AllocationPie = memo(function AllocationPie({ expenses, weeklyIncome, weeklyLeftover }: AllocationPieProps) {
   const slices = useMemo(
     () => buildIncomeAllocation(expenses, weeklyLeftover),
     [expenses, weeklyLeftover],
@@ -123,4 +123,4 @@ export function AllocationPie({ expenses, weeklyIncome, weeklyLeftover }: Alloca
       </CardContent>
     </Card>
   );
-}
+});

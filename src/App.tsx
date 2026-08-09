@@ -1,3 +1,4 @@
+import { useDeferredValue } from 'react';
 import { Button } from '@/components/ui/button';
 import { SummaryPanel } from '@/components/SummaryPanel';
 import { MoneyEntrySection } from '@/components/MoneyEntrySection';
@@ -16,6 +17,7 @@ function App() {
     weeklyIncome,
     weeklyExpenses,
     weeklyLeftover,
+    freeLeftover,
     goalProgressById,
     setIncome,
     setCurrentBalance,
@@ -30,6 +32,16 @@ function App() {
 
   const timeMachine = useTimeMachine(budget.goals, weeklyLeftover, budget.currentBalance);
   const horizonLabel = timeMachine.targetDate ? formatShortDate(timeMachine.targetDate) : undefined;
+
+  // Recharts is by far the most expensive thing on the page (~50ms of render
+  // for the two charts). Deferring their inputs lets React paint the numbers
+  // you're typing immediately and re-render the charts afterwards at low
+  // priority, so a fast typist never waits on chart layout.
+  const chartExpenses = useDeferredValue(budget.expenses);
+  const chartGoals = useDeferredValue(budget.goals);
+  const chartWeeklyIncome = useDeferredValue(weeklyIncome);
+  const chartWeeklyLeftover = useDeferredValue(weeklyLeftover);
+  const chartCurrentBalance = useDeferredValue(budget.currentBalance);
 
   const handleNewBudget = () => {
     if (window.confirm('Start a new budget? This clears all current data.')) {
@@ -71,6 +83,7 @@ function App() {
           weeklyIncome={weeklyIncome}
           weeklyExpenses={weeklyExpenses}
           weeklyLeftover={weeklyLeftover}
+          freeLeftover={freeLeftover}
         />
         <TimeMachine
           today={timeMachine.today}
@@ -107,13 +120,17 @@ function App() {
         </div>
 
         <AllocationPie
-          expenses={budget.expenses}
-          weeklyIncome={weeklyIncome}
-          weeklyLeftover={weeklyLeftover}
+          expenses={chartExpenses}
+          weeklyIncome={chartWeeklyIncome}
+          weeklyLeftover={chartWeeklyLeftover}
         />
 
         <div className="h-full min-h-0">
-          <SavingsProjection goals={budget.goals} weeklyLeftover={weeklyLeftover} />
+          <SavingsProjection
+            goals={chartGoals}
+            weeklyLeftover={chartWeeklyLeftover}
+            currentBalance={chartCurrentBalance}
+          />
         </div>
 
         {/* Parked in the third column so the other widgets fill columns 1–2

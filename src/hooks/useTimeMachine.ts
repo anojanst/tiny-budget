@@ -24,16 +24,17 @@ export function useTimeMachine(goals: Goal[], weeklyLeftover: number, currentBal
   const balance = currentBalance + weeklyLeftover * weeks;
 
   // Of that balance, whatever the waterfall has committed to goals by then —
-  // the rest (including the whole starting balance) is still free.
+  // the starting balance itself is spent first (instantly), so this is only
+  // "free" once every goal is fully funded.
   const goalAllocation = useMemo(
-    () => totalGoalAllocationAtWeeks(goals, weeklyLeftover, weeks),
-    [goals, weeklyLeftover, weeks],
+    () => totalGoalAllocationAtWeeks(goals, weeklyLeftover, weeks, currentBalance),
+    [goals, weeklyLeftover, weeks, currentBalance],
   );
   const freeBalance = balance - goalAllocation;
 
   const projections = useMemo(
-    () => projectGoalsAt(goals, weeklyLeftover, weeks),
-    [goals, weeklyLeftover, weeks],
+    () => projectGoalsAt(goals, weeklyLeftover, weeks, currentBalance),
+    [goals, weeklyLeftover, weeks, currentBalance],
   );
 
   // Keyed for the Goals widget, which is what actually displays these now.

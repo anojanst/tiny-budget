@@ -3,6 +3,7 @@ import {
   calculateGoalsProgress,
   calculateWeeklyLeftover,
   computeGoalCompletionWeeks,
+  currentFreeLeftover,
   projectGoalsAt,
   toWeeklyAmount,
   totalGoalAllocationAtWeeks,
@@ -197,5 +198,99 @@ describe('totalGoalAllocationAtWeeks', () => {
   it('allocates nothing when leftover is not positive', () => {
     const goals: Goal[] = [{ id: 'a', name: 'A', targetAmount: 100, currentSaved: 0, priority: 1 }];
     expect(totalGoalAllocationAtWeeks(goals, -20, 4)).toBe(0);
+  });
+});
+
+describe('currentFreeLeftover', () => {
+  it('is zero when any goal is still unmet, however small', () => {
+    const goals: Goal[] = [{ id: 'a', name: 'A', targetAmount: 1000000, currentSaved: 999999.99, priority: 1 }];
+    expect(currentFreeLeftover(goals, 470.23)).toBe(0);
+  });
+
+  it('is the full leftover once every goal is met', () => {
+    const goals: Goal[] = [{ id: 'a', name: 'A', targetAmount: 100, currentSaved: 100, priority: 1 }];
+    expect(currentFreeLeftover(goals, 470.23)).toBe(470.23);
+  });
+
+  it('is the full leftover when there are no goals at all', () => {
+    expect(currentFreeLeftover([], 470.23)).toBe(470.23);
+  });
+
+  it('passes a negative leftover through unchanged regardless of goals', () => {
+    const goals: Goal[] = [{ id: 'a', name: 'A', targetAmount: 100, currentSaved: 0, priority: 1 }];
+    expect(currentFreeLeftover(goals, -50)).toBe(-50);
+  });
+
+  it('is zero if even one goal among several is unmet', () => {
+    const goals: Goal[] = [
+      { id: 'a', name: 'A', targetAmount: 100, currentSaved: 100, priority: 1 },
+      { id: 'b', name: 'B', targetAmount: 100, currentSaved: 50, priority: 2 },
+    ];
+    expect(currentFreeLeftover(goals, 470.23)).toBe(0);
+  });
+});
+
+describe('currentBalance as an instant lump sum in the waterfall', () => {
+  it('funds a single goal immediately (completion week 0) when the balance alone covers it', () => {
+    const goals: Goal[] = [{ id: 'a', name: 'A', targetAmount: 500, currentSaved: 0, priority: 1 }];
+    const completions = computeGoalCompletionWeeks(goals, 0, 5000);
+    expect(completions.get('a')).toBe(0);
+  });
+
+  it('splits the lump sum evenly across tied goals, same as the weekly rate does', () => {
+    const goals: Goal[] = [
+      { id: 'a', name: 'A', targetAmount: 2000, currentSaved: 0, priority: 1 },
+      { id: 'b', name: 'B', targetAmount: 1000, currentSaved: 0, priority: 1 },
+    ];
+    // $2000 balance, no ongoing leftover: $1000 each. B (needs 1000) finishes
+    // instantly; A is left needing 1000 more with no rate to fund it further.
+    const completions = computeGoalCompletionWeeks(goals, 0, 2000);
+    expect(completions.get('b')).toBe(0);
+    expect(completions.get('a')).toBeNull();
+  });
+
+  it('leaves a lower-priority goal untouched if the balance is fully absorbed by a higher tier', () => {
+    const goals: Goal[] = [
+      { id: 'a', name: 'A', targetAmount: 500, currentSaved: 0, priority: 1 },
+      { id: 'b', name: 'B', targetAmount: 500, currentSaved: 0, priority: 2 },
+    ];
+    const progress = calculateGoalsProgress(goals, 0, 500);
+    // 'met' reflects actual currentSaved, not a hypothetical instant funding —
+    // the balance covers A's need, so its ETA is immediate (0 weeks), but its
+    // currentSaved hasn't literally changed, so it's still 'on-track' not 'met'.
+    expect(progress.get('a')!.status).toBe('on-track');
+    expect(progress.get('a')!.weeksRemaining).toBe(0);
+    expect(progress.get('b')!.status).toBe('unreachable');
+  });
+
+  it('combines with the ongoing rate: balance funds instantly, then the rate continues on what is left', () => {
+    const goals: Goal[] = [{ id: 'a', name: 'A', targetAmount: 1000, currentSaved: 0, priority: 1 }];
+    // $500 balance covers half instantly; $50/wk covers the rest in 10 weeks.
+    const completions = computeGoalCompletionWeeks(goals, 50, 500);
+    expect(completions.get('a')).toBeCloseTo(10);
+  });
+
+  it('reconciles totalGoalAllocationAtWeeks with a balance that fully funds every goal', () => {
+    const goals: Goal[] = [
+      { id: 'a', name: 'A', targetAmount: 2000, currentSaved: 0, priority: 1 },
+      { id: 'b', name: 'B', targetAmount: 1000, currentSaved: 0, priority: 2 },
+    ];
+    const currentBalance = 5000;
+    const weeklyLeftover = 470.23;
+    const weeks = 52; // 1 year — plenty of time for everything to finish
+    const allocation = totalGoalAllocationAtWeeks(goals, weeklyLeftover, weeks, currentBalance);
+    const balance = currentBalance + weeklyLeftover * weeks;
+    const free = balance - allocation;
+    // Both goals need 3000 combined; the rest of the accrued money is free.
+    expect(allocation).toBeCloseTo(3000, 2);
+    expect(free).toBeCloseTo(balance - 3000, 2);
+    expect(free).toBeGreaterThan(0);
+  });
+
+  it('projectGoalsAt reflects goals already met instantly via the balance alone', () => {
+    const goals: Goal[] = [{ id: 'a', name: 'A', targetAmount: 500, currentSaved: 0, priority: 1 }];
+    const [a] = projectGoalsAt(goals, 0, 4, 5000);
+    expect(a.reached).toBe(true);
+    expect(a.projectedPercent).toBeCloseTo(100);
   });
 });

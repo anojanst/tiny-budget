@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -29,12 +29,13 @@ const SERIES_COLORS = [
 interface SavingsProjectionProps {
   goals: Goal[];
   weeklyLeftover: number;
+  currentBalance: number;
 }
 
-export function SavingsProjection({ goals, weeklyLeftover }: SavingsProjectionProps) {
+export const SavingsProjection = memo(function SavingsProjection({ goals, weeklyLeftover, currentBalance }: SavingsProjectionProps) {
   const weeks = useMemo(
-    () => projectionHorizonWeeks(goals, weeklyLeftover),
-    [goals, weeklyLeftover],
+    () => projectionHorizonWeeks(goals, weeklyLeftover, currentBalance),
+    [goals, weeklyLeftover, currentBalance],
   );
 
   // One band per goal, stacked bottom-up in priority order — the bottom band
@@ -42,9 +43,11 @@ export function SavingsProjection({ goals, weeklyLeftover }: SavingsProjectionPr
   // it's done, at which point the band above it starts climbing. This shows
   // the waterfall directly instead of requiring a reader to decode where a
   // shared threshold sits, which reads as a contradiction when two goals tie.
+  // The current balance counts too: it's spent first, as an instant jump at
+  // week 0, before the ongoing weekly rate takes over.
   const { points, series } = useMemo(
-    () => buildGoalSavingsSeries(goals, weeklyLeftover, weeks),
-    [goals, weeklyLeftover, weeks],
+    () => buildGoalSavingsSeries(goals, weeklyLeftover, weeks, currentBalance),
+    [goals, weeklyLeftover, weeks, currentBalance],
   );
 
   const config = useMemo<ChartConfig>(
@@ -67,7 +70,7 @@ export function SavingsProjection({ goals, weeklyLeftover }: SavingsProjectionPr
       <CardContent className="flex min-h-0 flex-1 flex-col">
         {points.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No weekly leftover to save — the projection appears once income clears expenses.
+            No leftover or balance to fund goals with yet — the projection appears once there is.
           </p>
         ) : (
           <>
@@ -123,4 +126,4 @@ export function SavingsProjection({ goals, weeklyLeftover }: SavingsProjectionPr
       </CardContent>
     </Card>
   );
-}
+});

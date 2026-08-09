@@ -18,6 +18,9 @@ interface SummaryPanelProps {
   weeklyIncome: number;
   weeklyExpenses: number;
   weeklyLeftover: number;
+  /** What's actually spendable this week — 0 whenever a goal is still
+   * absorbing the whole leftover, per the priority waterfall. */
+  freeLeftover: number;
 }
 
 export function SummaryPanel({
@@ -28,16 +31,23 @@ export function SummaryPanel({
   weeklyIncome,
   weeklyExpenses,
   weeklyLeftover,
+  freeLeftover,
 }: SummaryPanelProps) {
   const inTheRed = weeklyLeftover <= 0;
+  // Distinct from overspending: every dollar is accounted for, just not
+  // yours to spend yet — it's on its way to a goal instead.
+  const isFullyCommitted = !inTheRed && freeLeftover === 0;
 
   return (
     <Card
       className={cn(
+        // Card's own bg-card/40 gets dropped by tailwind-merge once we hand
+        // it a competing bg-gradient-to-r, so the translucency has to be
+        // reapplied on every stop here to keep this card glass-consistent.
         'h-full border-l-4 bg-gradient-to-r',
         inTheRed
-          ? 'border-l-rose-500 from-rose-500/10 via-card to-card dark:border-l-rose-400'
-          : 'border-l-emerald-500 from-blue-500/10 via-card to-emerald-500/10 dark:border-l-emerald-400',
+          ? 'border-l-rose-500 from-rose-500/20 via-card/40 to-card/40 dark:from-rose-500/15 dark:via-card/25 dark:to-card/25 dark:border-l-rose-400'
+          : 'border-l-emerald-500 from-blue-500/20 via-card/40 to-emerald-500/20 dark:from-blue-500/15 dark:via-card/25 dark:to-emerald-500/15 dark:border-l-emerald-400',
       )}
     >
       <WidgetHeading icon={Wallet} title="Right now" accent="emerald" />
@@ -98,21 +108,30 @@ export function SummaryPanel({
             <p className="mt-1 text-lg font-semibold">{formatCurrency(weeklyExpenses)}/wk</p>
           </div>
 
-          {/* Hero figure — the one number the whole app is tuning. */}
+          {/* Hero figure — what's actually free to spend, not the raw
+              income-minus-expenses pool. The waterfall sends 100% of that
+              pool to whichever goal is still unfunded, so this reads $0
+              until every goal is met — which is correct, not a bug. */}
           <div className="shrink-0">
-            <p className="text-xs text-muted-foreground">Leftover each week</p>
+            <p className="text-xs text-muted-foreground">Free each week</p>
             <p
               className={cn(
                 'text-4xl font-semibold tracking-tight',
-                inTheRed ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400',
+                inTheRed
+                  ? 'text-destructive'
+                  : isFullyCommitted
+                    ? 'text-violet-600 dark:text-violet-400'
+                    : 'text-emerald-600 dark:text-emerald-400',
               )}
             >
-              {formatCurrency(weeklyLeftover)}
+              {formatCurrency(freeLeftover)}
             </p>
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground">Balance is cash on hand, not earmarked for any goal.</p>
+        <p className="text-xs text-muted-foreground">
+          Balance and leftover both fund unmet goals first, by priority.
+        </p>
 
         {inTheRed && weeklyIncome > 0 && (
           <Alert variant="destructive">
@@ -120,6 +139,12 @@ export function SummaryPanel({
               Spending more than you earn — goals won't progress until there's leftover.
             </AlertDescription>
           </Alert>
+        )}
+
+        {isFullyCommitted && (
+          <p className="text-xs text-muted-foreground">
+            {formatCurrency(weeklyLeftover)}/wk is fully committed to goals — see Goals for the breakdown.
+          </p>
         )}
       </CardContent>
     </Card>

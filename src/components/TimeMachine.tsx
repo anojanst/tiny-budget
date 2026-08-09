@@ -37,6 +37,9 @@ export function TimeMachine({
   freeBalance,
 }: TimeMachineProps) {
   const inDebt = balance < 0;
+  // Distinct from actual debt: every dollar is accounted for, just not free
+  // yet — it's on its way to a goal instead.
+  const isFullyCommitted = !inDebt && freeBalance < 0.005 && goalAllocation > 0.005;
 
   return (
     <Card className={cn('h-full', widgetCardClass('amber'))}>
@@ -86,23 +89,30 @@ export function TimeMachine({
               'Pick a date'
             )}
           </p>
+          {/* Hero figure — what's actually free, not the raw total. The
+              balance funds unmet goals first (instantly, same as the weekly
+              leftover), so this reads $0 until every goal is fully funded. */}
           <p
             className={cn(
               'text-4xl font-semibold tracking-tight',
-              inDebt ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400',
+              inDebt
+                ? 'text-destructive'
+                : isFullyCommitted
+                  ? 'text-violet-600 dark:text-violet-400'
+                  : 'text-emerald-600 dark:text-emerald-400',
             )}
           >
-            {formatCurrency(Math.abs(balance))}
+            {formatCurrency(Math.abs(inDebt ? balance : freeBalance))}
             <span className="ml-2 text-sm font-normal text-muted-foreground">
-              {inDebt ? 'in debt' : 'saved'}
+              {inDebt ? 'in debt' : 'free'}
             </span>
           </p>
-          {/* Reconciles this total with the Goals widget: the starting balance
-              is never itself fed into a goal, only new leftover is, so what's
-              earmarked here is always <= the accumulated leftover. */}
+          {/* Reconciles the hero with the Goals widget: the balance funds
+              unmet goals first, same as the leftover, so it's only free once
+              every goal is fully funded. */}
           {goalAllocation > 0.5 && (
             <p className="mt-1 text-xs text-muted-foreground">
-              {formatCurrency(freeBalance)} free · {formatCurrency(goalAllocation)} to goals — see Goals for per-goal detail
+              {formatCurrency(balance)} total · {formatCurrency(goalAllocation)} to goals — see Goals for per-goal detail
             </p>
           )}
         </div>

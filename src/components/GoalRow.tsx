@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +29,7 @@ interface GoalRowProps {
   onRemove: (id: string) => void;
 }
 
-export function GoalRow({ goal, progress, tierSize, projection, horizonLabel, onUpdate, onRemove }: GoalRowProps) {
+export const GoalRow = memo(function GoalRow({ goal, progress, tierSize, projection, horizonLabel, onUpdate, onRemove }: GoalRowProps) {
   const currentPercent = progress.percentComplete;
   const projectedPercent = projection?.projectedPercent ?? currentPercent;
   const showsProjection = projectedPercent > currentPercent + 0.5;
@@ -154,4 +155,4 @@ export function GoalRow({ goal, progress, tierSize, projection, horizonLabel, on
       </div>
     </div>
   );
-}
+});

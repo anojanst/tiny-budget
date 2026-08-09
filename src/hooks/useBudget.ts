@@ -3,6 +3,7 @@ import { useLocalStorage } from './useLocalStorage';
 import { generateId } from '@/lib/id';
 import {
   calculateGoalsProgress,
+  currentFreeLeftover,
   calculateWeeklyLeftover,
   sumWeekly,
   toWeeklyAmount,
@@ -104,7 +105,9 @@ const initialStoredBudget: StoredBudget = { version: CURRENT_VERSION, budget: cr
 export function useBudget() {
   const [stored, setStored] = useLocalStorage<StoredBudget>(STORAGE_KEY, initialStoredBudget);
 
-  const budget: Budget = readBudget(stored);
+  // Memoized so migration/validation doesn't re-run on every render, and so
+  // `budget` keeps a stable identity for the memoized children below it.
+  const budget: Budget = useMemo(() => readBudget(stored), [stored]);
 
   const setBudget = useCallback(
     (updater: (prev: Budget) => Budget) => {
@@ -190,7 +193,14 @@ export function useBudget() {
   );
 
   const goalProgressById: Map<string, GoalProgress> = useMemo(
-    () => calculateGoalsProgress(budget.goals, weeklyLeftover),
+    () => calculateGoalsProgress(budget.goals, weeklyLeftover, budget.currentBalance),
+    [budget.goals, weeklyLeftover, budget.currentBalance],
+  );
+
+  // What's actually spendable this week — $0 whenever a goal is still
+  // absorbing the whole leftover, per the priority waterfall.
+  const freeLeftover = useMemo(
+    () => currentFreeLeftover(budget.goals, weeklyLeftover),
     [budget.goals, weeklyLeftover],
   );
 
@@ -199,6 +209,7 @@ export function useBudget() {
     weeklyIncome,
     weeklyExpenses,
     weeklyLeftover,
+    freeLeftover,
     goalProgressById,
     setIncome,
     setCurrentBalance,

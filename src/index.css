@@ -131,12 +131,15 @@
     }
   body {
     @apply bg-background text-foreground;
-    /* Soft corner washes so cards read as floating on a tinted plane rather
-       than sitting on flat white. Fixed so it never scrolls with content. */
+    /* Vivid corner washes for the glass cards to blur and saturate — a liquid
+       glass surface reads as glass only when there's real color behind it to
+       refract; a barely-tinted page would just look like frosted white.
+       Fixed so it never scrolls with content. */
     background-image:
-      radial-gradient(70rem 35rem at 8% -12%, color-mix(in oklab, var(--chart-1) 16%, transparent), transparent 60%),
-      radial-gradient(60rem 32rem at 104% 4%, color-mix(in oklab, var(--chart-5) 14%, transparent), transparent 58%),
-      radial-gradient(52rem 30rem at 50% 116%, color-mix(in oklab, var(--chart-2) 12%, transparent), transparent 60%);
+      radial-gradient(70rem 35rem at 8% -12%, color-mix(in oklab, var(--chart-1) 55%, transparent), transparent 65%),
+      radial-gradient(60rem 32rem at 104% 4%, color-mix(in oklab, var(--chart-5) 50%, transparent), transparent 62%),
+      radial-gradient(58rem 34rem at 96% 92%, color-mix(in oklab, var(--chart-3) 40%, transparent), transparent 62%),
+      radial-gradient(52rem 30rem at 50% 116%, color-mix(in oklab, var(--chart-2) 45%, transparent), transparent 65%);
     background-attachment: fixed;
     }
   html {

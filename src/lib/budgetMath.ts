@@ -19,6 +19,20 @@ export function calculateWeeklyLeftover(income: Income, expenses: MoneyEntry[]):
   return weeklyIncomeAmount(income) - sumWeekly(expenses);
 }
 
+/**
+ * What's actually free to spend *this week*, after goal funding. The waterfall
+ * always sends the entire weekly leftover to whichever goal tier is still
+ * active, so as long as any goal remains unmet, none of it is free — only
+ * once every goal is funded (or there simply are none) does the leftover
+ * become spendable. A negative leftover passes through unchanged: there's no
+ * funding happening either way, so it's just the same overspend figure.
+ */
+export function currentFreeLeftover(goals: Goal[], weeklyLeftover: number): number {
+  if (weeklyLeftover <= 0) return weeklyLeftover;
+  const hasUnmetGoal = goals.some((goal) => goal.targetAmount - goal.currentSaved > 0);
+  return hasUnmetGoal ? 0 : weeklyLeftover;
+}
+
 export type GoalStatus = 'met' | 'unreachable' | 'on-track';
 
 export interface GoalProgress {
@@ -31,13 +45,17 @@ export interface GoalProgress {
 }
 
 /**
- * Priority waterfall: the full weekly leftover pours into the lowest-numbered
- * priority tier that still has unmet goals, split evenly across ties. A tier
- * only starts receiving money once every goal ahead of it is fully funded.
+ * Priority waterfall: every available dollar — existing balance first, then
+ * the weekly leftover as it arrives — pours into the lowest-numbered priority
+ * tier that still has unmet goals, split evenly across ties. A tier only
+ * starts receiving money once every goal ahead of it is fully funded.
  *
- * Modeled as constant-rate segments — each segment ends the instant a goal in
- * the active tier is fully funded, at which point its share redistributes to
- * the rest of the tier (or the next tier, if it was the last one active). At
+ * The balance is a lump sum already in hand, so it's consumed instantly at
+ * week 0 (cascading through tiers exactly like the rate does over time —
+ * a tier member that gets fully funded frees its share to the rest of the
+ * tier, in the same pass). Whatever's left of a tier's need after that draws
+ * from the ongoing weekly rate instead, modeled as constant-rate segments
+ * that each end the instant a goal in the active tier is fully funded. At
  * most one segment per goal, so this always terminates in goals.length steps.
  */
 interface WaterfallSegment {
@@ -47,26 +65,54 @@ interface WaterfallSegment {
 }
 
 interface Waterfall {
+  lumpSumByGoalId: Map<string, number>;
   segments: WaterfallSegment[];
   completionWeeks: Map<string, number>;
 }
 
-function simulateWaterfall(goals: Goal[], weeklyLeftover: number): Waterfall {
+function simulateWaterfall(goals: Goal[], weeklyLeftover: number, currentBalance = 0): Waterfall {
+  const lumpSumByGoalId = new Map<string, number>();
   const segments: WaterfallSegment[] = [];
   const completionWeeks = new Map<string, number>();
-  if (weeklyLeftover <= 0) return { segments, completionWeeks };
 
   const remaining = new Map<string, number>();
   for (const goal of goals) {
     const need = Math.max(goal.targetAmount - goal.currentSaved, 0);
     if (need > 0) remaining.set(goal.id, need);
   }
-  if (remaining.size === 0) return { segments, completionWeeks };
-
   const priorityOf = new Map(goals.map((goal) => [goal.id, goal.priority]));
-  const pending = new Set(remaining.keys());
-  let elapsed = 0;
 
+  // Instant lump-sum pass: the balance is spent right now, cascading through
+  // tiers just like the rate-based pass below.
+  if (currentBalance > 0 && remaining.size > 0) {
+    let amount = currentBalance;
+    const lumpPending = new Set(remaining.keys());
+    while (amount > 1e-9 && lumpPending.size > 0) {
+      const lowestPriority = Math.min(...[...lumpPending].map((id) => priorityOf.get(id)!));
+      const tier = [...lumpPending].filter((id) => priorityOf.get(id) === lowestPriority);
+      const share = amount / tier.length;
+      let used = 0;
+      for (const id of tier) {
+        const need = remaining.get(id)!;
+        const give = Math.min(share, need);
+        remaining.set(id, need - give);
+        lumpSumByGoalId.set(id, (lumpSumByGoalId.get(id) ?? 0) + give);
+        used += give;
+        if (need - give <= 1e-9) {
+          completionWeeks.set(id, 0);
+          lumpPending.delete(id);
+        }
+      }
+      amount -= used;
+    }
+  }
+
+  const pending = new Set([...remaining.entries()].filter(([, need]) => need > 1e-9).map(([id]) => id));
+  if (weeklyLeftover <= 0 || pending.size === 0) {
+    return { lumpSumByGoalId, segments, completionWeeks };
+  }
+
+  let elapsed = 0;
   while (pending.size > 0) {
     const lowestPriority = Math.min(...[...pending].map((id) => priorityOf.get(id)!));
     const tier = [...pending].filter((id) => priorityOf.get(id) === lowestPriority);
@@ -85,15 +131,20 @@ function simulateWaterfall(goals: Goal[], weeklyLeftover: number): Waterfall {
       }
     }
   }
-  return { segments, completionWeeks };
+  return { lumpSumByGoalId, segments, completionWeeks };
 }
 
 /**
- * Exact week each goal is fully funded under the priority waterfall.
- * `null` = unreachable (still needs money, but leftover isn't positive).
+ * Exact week each goal is fully funded under the priority waterfall (week 0
+ * if the current balance alone covers it). `null` = unreachable (still needs
+ * money, but there's no balance and leftover isn't positive).
  */
-export function computeGoalCompletionWeeks(goals: Goal[], weeklyLeftover: number): Map<string, number | null> {
-  const { completionWeeks } = simulateWaterfall(goals, weeklyLeftover);
+export function computeGoalCompletionWeeks(
+  goals: Goal[],
+  weeklyLeftover: number,
+  currentBalance = 0,
+): Map<string, number | null> {
+  const { completionWeeks } = simulateWaterfall(goals, weeklyLeftover, currentBalance);
   const result = new Map<string, number | null>();
   for (const goal of goals) {
     const need = Math.max(goal.targetAmount - goal.currentSaved, 0);
@@ -105,6 +156,10 @@ export function computeGoalCompletionWeeks(goals: Goal[], weeklyLeftover: number
 /** Saved amount for every goal at `atWeek`, honoring the waterfall. */
 function savedAmountsAtWeek(goals: Goal[], atWeek: number, waterfall: Waterfall): Map<string, number> {
   const saved = new Map(goals.map((goal) => [goal.id, goal.currentSaved]));
+  // The lump sum lands at week 0, so it's already reflected at any atWeek >= 0.
+  for (const [goalId, amount] of waterfall.lumpSumByGoalId) {
+    saved.set(goalId, (saved.get(goalId) ?? 0) + amount);
+  }
   if (atWeek <= 0) return saved;
   for (const segment of waterfall.segments) {
     if (segment.startWeek >= atWeek) break;
@@ -120,8 +175,12 @@ function savedAmountsAtWeek(goals: Goal[], atWeek: number, waterfall: Waterfall)
  * Progress for every goal at once — under priority, one goal's ETA depends on
  * every other goal's priority and size, so this can't be computed goal-by-goal.
  */
-export function calculateGoalsProgress(goals: Goal[], weeklyLeftover: number): Map<string, GoalProgress> {
-  const completions = computeGoalCompletionWeeks(goals, weeklyLeftover);
+export function calculateGoalsProgress(
+  goals: Goal[],
+  weeklyLeftover: number,
+  currentBalance = 0,
+): Map<string, GoalProgress> {
+  const completions = computeGoalCompletionWeeks(goals, weeklyLeftover, currentBalance);
   const result = new Map<string, GoalProgress>();
 
   for (const goal of goals) {
@@ -237,8 +296,10 @@ export function buildGoalSavingsSeries(
   goals: Goal[],
   weeklyLeftover: number,
   weeks: number,
+  currentBalance = 0,
 ): { points: GoalSavingsPoint[]; series: GoalSavingsSeries[] } {
-  if (weeklyLeftover <= 0 || weeks <= 0 || goals.length === 0) {
+  const hasFundingSource = weeklyLeftover > 0 || currentBalance > 0;
+  if (!hasFundingSource || weeks <= 0 || goals.length === 0) {
     return { points: [], series: [] };
   }
 
@@ -247,7 +308,7 @@ export function buildGoalSavingsSeries(
   const kept = overflow ? sorted.slice(0, MAX_GOAL_SERIES - 1) : sorted;
   const folded = overflow ? sorted.slice(MAX_GOAL_SERIES - 1) : [];
 
-  const waterfall = simulateWaterfall(goals, weeklyLeftover);
+  const waterfall = simulateWaterfall(goals, weeklyLeftover, currentBalance);
   const points: GoalSavingsPoint[] = [];
   for (let week = 0; week <= weeks; week++) {
     const saved = savedAmountsAtWeek(goals, week, waterfall);
@@ -284,8 +345,13 @@ export interface GoalAtDate {
  * ahead of it is fully funded. Returned in priority order (ties keep their
  * original order), matching every other goal list in the app.
  */
-export function projectGoalsAt(goals: Goal[], weeklyLeftover: number, weeks: number): GoalAtDate[] {
-  const waterfall = simulateWaterfall(goals, Math.max(weeklyLeftover, 0));
+export function projectGoalsAt(
+  goals: Goal[],
+  weeklyLeftover: number,
+  weeks: number,
+  currentBalance = 0,
+): GoalAtDate[] {
+  const waterfall = simulateWaterfall(goals, Math.max(weeklyLeftover, 0), Math.max(currentBalance, 0));
   const savedAtHorizon = savedAmountsAtWeek(goals, Math.max(weeks, 0), waterfall);
   const percent = (saved: number, target: number) =>
     target > 0 ? Math.min(100, Math.max(0, (saved / target) * 100)) : 100;
@@ -308,22 +374,27 @@ export function projectGoalsAt(goals: Goal[], weeklyLeftover: number, weeks: num
 /**
  * How much of the money accumulated by `weeks` is earmarked for goals under
  * the waterfall, vs. free. The two always reconcile with the total balance:
- * `currentBalance + weeklyLeftover*weeks = freeAmount + goalAllocation` —
- * the starting balance is never itself fed into goals, only new leftover is.
+ * `currentBalance + weeklyLeftover*weeks = freeAmount + goalAllocation` — the
+ * starting balance is spent first (instantly, at week 0), same as the leftover.
  */
-export function totalGoalAllocationAtWeeks(goals: Goal[], weeklyLeftover: number, weeks: number): number {
-  const waterfall = simulateWaterfall(goals, Math.max(weeklyLeftover, 0));
+export function totalGoalAllocationAtWeeks(
+  goals: Goal[],
+  weeklyLeftover: number,
+  weeks: number,
+  currentBalance = 0,
+): number {
+  const waterfall = simulateWaterfall(goals, Math.max(weeklyLeftover, 0), Math.max(currentBalance, 0));
   const saved = savedAmountsAtWeek(goals, Math.max(weeks, 0), waterfall);
   return goals.reduce((sum, goal) => sum + Math.max((saved.get(goal.id) ?? goal.currentSaved) - goal.currentSaved, 0), 0);
 }
 
 /** Weeks to plot: far enough to clear the slowest goal, clamped to a sane window. */
-export function projectionHorizonWeeks(goals: Goal[], weeklyLeftover: number): number {
+export function projectionHorizonWeeks(goals: Goal[], weeklyLeftover: number, currentBalance = 0): number {
   const DEFAULT_WEEKS = 26;
   const MAX_WEEKS = 104;
-  if (weeklyLeftover <= 0) return 0;
+  if (weeklyLeftover <= 0 && currentBalance <= 0) return 0;
 
-  const completions = computeGoalCompletionWeeks(goals, weeklyLeftover);
+  const completions = computeGoalCompletionWeeks(goals, weeklyLeftover, currentBalance);
   const furthest = Math.max(0, ...[...completions.values()].filter((w): w is number => w !== null));
 
   if (furthest <= 0) return DEFAULT_WEEKS;

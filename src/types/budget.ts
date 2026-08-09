@@ -28,7 +28,11 @@ export interface Budget {
   income: Income;
   expenses: ExpenseCategory[];
   goals: Goal[];
-  /** Cash on hand right now, not earmarked for any goal. Can go negative (existing debt). */
+  /**
+   * Cash on hand right now. Like the weekly leftover, it funds unmet goals
+   * first (by priority, instantly rather than over time) — only free once
+   * every goal is met. Can go negative (existing debt).
+   */
   currentBalance: number;
 }
 

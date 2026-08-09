@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -15,7 +16,7 @@ interface MoneyEntryRowProps {
   onRemove: (id: string) => void;
 }
 
-export function MoneyEntryRow({ entry, onUpdate, onRemove }: MoneyEntryRowProps) {
+export const MoneyEntryRow = memo(function MoneyEntryRow({ entry, onUpdate, onRemove }: MoneyEntryRowProps) {
   const weekly = toWeeklyAmount(entry.amount, entry.frequency);
 
   return (
@@ -80,4 +81,4 @@ export function MoneyEntryRow({ entry, onUpdate, onRemove }: MoneyEntryRowProps)
       </Button>
     </div>
   );
-}
+});
