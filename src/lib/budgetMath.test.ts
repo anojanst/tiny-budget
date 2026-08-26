@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildGoalSavingsSeries,
   calculateGoalsProgress,
   calculateWeeklyLeftover,
   computeGoalCompletionWeeks,
@@ -198,6 +199,33 @@ describe('totalGoalAllocationAtWeeks', () => {
   it('allocates nothing when leftover is not positive', () => {
     const goals: Goal[] = [{ id: 'a', name: 'A', targetAmount: 100, currentSaved: 0, priority: 1 }];
     expect(totalGoalAllocationAtWeeks(goals, -20, 4)).toBe(0);
+  });
+});
+
+describe('buildGoalSavingsSeries — delayed start', () => {
+  const goals: Goal[] = [{ id: 'a', name: 'A', targetAmount: 1000, currentSaved: 0, priority: 1 }];
+
+  it('holds flat until the start week, then climbs', () => {
+    // Saving begins at week 5, so weeks 0-5 must show no progress at all.
+    const { points } = buildGoalSavingsSeries(goals, 100, 12, 0, 5);
+    expect(points[0].a).toBeCloseTo(0);
+    expect(points[5].a).toBeCloseTo(0);
+    expect(points[6].a).toBeCloseTo(100);
+    expect(points[10].a).toBeCloseTo(500);
+  });
+
+  it('is the undelayed series shifted forward, not a different curve', () => {
+    const delayed = buildGoalSavingsSeries(goals, 100, 12, 0, 4).points;
+    const immediate = buildGoalSavingsSeries(goals, 100, 12, 0, 0).points;
+    for (let week = 0; week + 4 <= 12; week++) {
+      expect(delayed[week + 4].a).toBeCloseTo(immediate[week].a);
+    }
+  });
+
+  it('behaves exactly as before when nothing is delaying it', () => {
+    const withZero = buildGoalSavingsSeries(goals, 100, 8, 0, 0).points;
+    const withDefault = buildGoalSavingsSeries(goals, 100, 8, 0).points;
+    expect(withZero).toEqual(withDefault);
   });
 });
 

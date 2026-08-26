@@ -135,8 +135,15 @@ export function simulateSnowball(
 
   // Constant for the whole run: as debts close, their minimums stop being spent
   // and fall through to the attack instead. That rollover *is* the snowball.
+  //
+  // Only debts that actually owe something contribute. A settled debt left in
+  // the list with its old minimum still filled in owes nobody anything, and
+  // counting it would budget money the user doesn't have.
   const totalWeeklyBudget =
-    order.reduce((sum, debt) => sum + Math.max(debt.minimumPayment, 0), 0) + Math.max(weeklyExtra, 0);
+    order.reduce(
+      (sum, debt) => (debt.balance > EPSILON ? sum + Math.max(debt.minimumPayment, 0) : sum),
+      0,
+    ) + Math.max(weeklyExtra, 0);
 
   const isOpen = (debt: Debt) => (remaining.get(debt.id) ?? 0) > EPSILON;
 
@@ -249,7 +256,7 @@ export function buildDebtPayoffSeries(
   const historyLength = Math.max(
     ...[...result.balanceHistory.values()].map((history) => history.length),
   );
-  // An unreachable debt runs to the cap; plotting 57 years of a flat band is
+  // An unreachable debt runs to the cap; plotting decades of a flat band is
   // noise, so the chart stops at a window that still shows the shape.
   const weeks = Math.min(historyLength - 1, 260);
   if (weeks <= 0) return { points: [], series: [], weeks: 0 };
@@ -278,36 +285,4 @@ export function buildDebtPayoffSeries(
   if (folded.length > 0) series.push({ id: '__other__', name: 'Other', payoffWeek: null });
 
   return { points, series, weeks };
-}
-
-export interface DiversionImpact {
-  /** Extra weeks until debt-free caused by the diversion. null if incomparable. */
-  weeksDelayed: number | null;
-  debtFreeWeekWithout: number | null;
-  debtFreeWeekWith: number | null;
-}
-
-/**
- * What funding goals costs while in debt: the same snowball run twice, once
- * with every spare dollar on the debt and once with the diversion applied.
- */
-export function diversionImpact(
-  debts: Debt[],
-  postMinimum: number,
-  goalContribution: number,
-  currentBalance = 0,
-): DiversionImpact {
-  const without = simulateSnowball(debts, postMinimum, currentBalance);
-  const with_ = simulateSnowball(debts, Math.max(postMinimum - goalContribution, 0), currentBalance);
-
-  const weeksDelayed =
-    without.debtFreeWeek !== null && with_.debtFreeWeek !== null
-      ? with_.debtFreeWeek - without.debtFreeWeek
-      : null;
-
-  return {
-    weeksDelayed,
-    debtFreeWeekWithout: without.debtFreeWeek,
-    debtFreeWeekWith: with_.debtFreeWeek,
-  };
 }

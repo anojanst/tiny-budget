@@ -64,9 +64,9 @@ export function DebtsSection({
             No debts listed — you're debt free. Add one below if that changes.
           </p>
         ) : (
-          /* Two per row on wide screens: the tiles are compact enough that a
-             single column wastes most of the width once there are a few. */
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          /* Up to three per row: the tiles are only two fields wide, so a
+             single column wastes most of the available width. */
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {snowball.order.map((debt, index) => (
               <DebtRow
                 key={debt.id}

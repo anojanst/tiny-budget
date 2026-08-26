@@ -297,6 +297,12 @@ export function buildGoalSavingsSeries(
   weeklyLeftover: number,
   weeks: number,
   currentBalance = 0,
+  /**
+   * Week funding begins. Non-zero while debts are still being paid off: the
+   * bands sit flat until then, which is the honest picture rather than a curve
+   * that pretends saving starts today.
+   */
+  startWeek = 0,
 ): { points: GoalSavingsPoint[]; series: GoalSavingsSeries[] } {
   const hasFundingSource = weeklyLeftover > 0 || currentBalance > 0;
   if (!hasFundingSource || weeks <= 0 || goals.length === 0) {
@@ -311,7 +317,7 @@ export function buildGoalSavingsSeries(
   const waterfall = simulateWaterfall(goals, weeklyLeftover, currentBalance);
   const points: GoalSavingsPoint[] = [];
   for (let week = 0; week <= weeks; week++) {
-    const saved = savedAmountsAtWeek(goals, week, waterfall);
+    const saved = savedAmountsAtWeek(goals, Math.max(week - startWeek, 0), waterfall);
     const point: GoalSavingsPoint = { week };
     for (const goal of kept) point[goal.id] = saved.get(goal.id) ?? goal.currentSaved;
     if (folded.length > 0) {

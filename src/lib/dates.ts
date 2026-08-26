@@ -32,8 +32,16 @@ export function addWeeks(date: Date, weeks: number): Date {
   return new Date(date.getTime() + weeks * MS_PER_WEEK);
 }
 
+/**
+ * Counts calendar days, not elapsed milliseconds. A span crossing a daylight
+ * saving boundary is an hour shorter or longer in real time, which made a
+ * whole number of weeks come back as 11.994 — enough to shave a visible amount
+ * off a projected balance. Both arguments are local midnights, so rounding to
+ * the nearest day recovers the intended calendar distance.
+ */
 export function weeksBetween(from: Date, to: Date): number {
-  return (to.getTime() - from.getTime()) / MS_PER_WEEK;
+  const MS_PER_DAY = MS_PER_WEEK / 7;
+  return Math.round((to.getTime() - from.getTime()) / MS_PER_DAY) / 7;
 }
 
 export function formatShortDate(date: Date): string {

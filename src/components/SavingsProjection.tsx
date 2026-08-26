@@ -28,12 +28,19 @@ interface SavingsProjectionProps {
   goals: Goal[];
   weeklyLeftover: number;
   currentBalance: number;
+  /** Week saving begins — the debt-free date, or 0 when there's no debt. */
+  startWeek?: number;
 }
 
-export const SavingsProjection = memo(function SavingsProjection({ goals, weeklyLeftover, currentBalance }: SavingsProjectionProps) {
+export const SavingsProjection = memo(function SavingsProjection({
+  goals,
+  weeklyLeftover,
+  currentBalance,
+  startWeek = 0,
+}: SavingsProjectionProps) {
   const weeks = useMemo(
-    () => projectionHorizonWeeks(goals, weeklyLeftover, currentBalance),
-    [goals, weeklyLeftover, currentBalance],
+    () => projectionHorizonWeeks(goals, weeklyLeftover, currentBalance) + startWeek,
+    [goals, weeklyLeftover, currentBalance, startWeek],
   );
 
   // One band per goal, stacked bottom-up in priority order — the bottom band
@@ -44,8 +51,8 @@ export const SavingsProjection = memo(function SavingsProjection({ goals, weekly
   // The current balance counts too: it's spent first, as an instant jump at
   // week 0, before the ongoing weekly rate takes over.
   const { points, series } = useMemo(
-    () => buildGoalSavingsSeries(goals, weeklyLeftover, weeks, currentBalance),
-    [goals, weeklyLeftover, weeks, currentBalance],
+    () => buildGoalSavingsSeries(goals, weeklyLeftover, weeks, currentBalance, startWeek),
+    [goals, weeklyLeftover, weeks, currentBalance, startWeek],
   );
 
   const config = useMemo<ChartConfig>(
@@ -69,7 +76,9 @@ export const SavingsProjection = memo(function SavingsProjection({ goals, weekly
         description={
           points.length === 0
             ? undefined
-            : `At ${formatCurrency(weeklyLeftover)}/wk, held steady — lowest priority number fills first.`
+            : startWeek > 0
+              ? `Flat until week ${startWeek}, when your debts are gone — then ${formatCurrency(weeklyLeftover)}/wk, lowest priority number first.`
+              : `At ${formatCurrency(weeklyLeftover)}/wk, held steady — lowest priority number fills first.`
         }
       />
       <CardContent className="flex min-h-0 flex-1 flex-col">

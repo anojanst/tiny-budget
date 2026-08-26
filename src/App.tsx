@@ -11,17 +11,20 @@ import { SettingsPage } from '@/pages/SettingsPage';
 import { useBudget } from '@/hooks/useBudget';
 import { useTimeMachine } from '@/hooks/useTimeMachine';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useTheme } from '@/hooks/useTheme';
 import { useHashRoute } from '@/hooks/useHashRoute';
 
 function App() {
   const budget = useBudget();
   const onboarding = useOnboarding();
+  const theme = useTheme();
   const { route, navigate } = useHashRoute();
 
   const timeMachine = useTimeMachine({
     goals: budget.budget.goals,
     weeklyLeftover: budget.weeklyLeftover,
-    goalContribution: budget.goalContribution,
+    goalWeeklyRate: budget.goalWeeklyRate,
+    goalStartWeek: budget.goalStartWeek,
     currentBalance: budget.budget.currentBalance,
     hasDebts: budget.hasDebts,
     snowball: budget.snowball,
@@ -101,6 +104,10 @@ function App() {
             <SettingsPage
               onNewBudget={() => setConfirmingReset(true)}
               onRerunSetup={onboarding.restart}
+              themeId={theme.themeId}
+              onThemeChange={theme.setThemeId}
+              exportJson={budget.exportJson}
+              importJson={budget.importJson}
             />
           )}
         </div>

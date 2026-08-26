@@ -25,6 +25,12 @@ accounts, no data leaves the machine.
   debt-free date. Defaults to $0.
 - **Honest about shortfalls** — if your leftover can't cover your minimum
   payments, the app says so and refuses to project a payoff date you can't hit.
+- **Six themes** — one hue drives the brand colour, the greys, the borders and
+  the chart palette together, so the whole app changes tone rather than just
+  the buttons.
+- **Export and import** — your budget as a JSON file you can back up or carry
+  to another browser. Exports from older versions still open; they're migrated
+  on the way in.
 - **Weekly-normalized budgeting** — mix weekly and monthly amounts; everything
   is converted to a common weekly basis (`52 / 12` weeks per month).
 - **Priority waterfall for goals** — give each goal a priority number (lower

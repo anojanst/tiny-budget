@@ -48,12 +48,6 @@ export interface Budget {
    * negative balance. Funds debts first when any exist, goals otherwise.
    */
   currentBalance: number;
-  /**
-   * Weekly dollars diverted from debt payoff to savings goals. Defaults to 0:
-   * while you owe money, the snowball gets everything by default. Clamped to
-   * what's actually available at the point of use, never on write.
-   */
-  weeklyGoalContribution: number;
 }
 
 export const createEmptyBudget = (): Budget => ({
@@ -62,5 +56,4 @@ export const createEmptyBudget = (): Budget => ({
   goals: [],
   debts: [],
   currentBalance: 0,
-  weeklyGoalContribution: 0,
 });

@@ -1,7 +1,9 @@
 import { memo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { CategoryCombobox } from '@/components/ui/category-combobox';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { EXPENSE_CATEGORIES } from '@/lib/expenseCategories';
 import type { Frequency, MoneyEntry } from '@/types/budget';
 import { formatCurrency } from '@/lib/format';
 import { toWeeklyAmount } from '@/lib/budgetMath';
@@ -28,10 +30,12 @@ export const MoneyEntryRow = memo(function MoneyEntryRow({
 
   return (
     <div className="flex items-center gap-1.5 py-1">
-      <Input
+      <CategoryCombobox
         value={entry.name}
-        onChange={(e) => onUpdate(entry.id, { name: e.target.value })}
+        onValueChange={(name) => onUpdate(entry.id, { name })}
+        items={EXPENSE_CATEGORIES}
         placeholder="Name"
+        aria-label="Expense name"
         className="min-w-0 flex-1"
       />
       <Input

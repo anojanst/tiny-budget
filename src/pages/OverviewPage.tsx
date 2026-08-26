@@ -29,7 +29,8 @@ export function OverviewPage({ budget, timeMachine, onNavigate }: OverviewPagePr
     freeLeftover,
     hasDebts,
     budgetShortfall,
-    goalContribution,
+    goalWeeklyRate,
+    goalStartWeek,
     debtWeeklyExtra,
     goalFundingBalance,
     snowball,
@@ -155,8 +156,9 @@ export function OverviewPage({ budget, timeMachine, onNavigate }: OverviewPagePr
           ) : (
             <SavingsProjection
               goals={data.goals}
-              weeklyLeftover={goalContribution}
+              weeklyLeftover={goalWeeklyRate}
               currentBalance={goalFundingBalance}
+              startWeek={goalStartWeek ?? 0}
             />
           )}
           <TimeMachine

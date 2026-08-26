@@ -8,13 +8,14 @@ import {
   sumWeekly,
   toWeeklyAmount,
   weeklyIncomeAmount,
+  WEEKS_PER_MONTH,
   type GoalProgress,
 } from '@/lib/budgetMath';
 import { simulateSnowball } from '@/lib/debtMath';
 import { createEmptyBudget, type Budget, type Debt, type ExpenseCategory, type Frequency, type Goal, type Income, type MoneyEntry } from '@/types/budget';
 
 const STORAGE_KEY = 'tiny-budget:v1';
-const CURRENT_VERSION = 6;
+const CURRENT_VERSION = 7;
 
 interface StoredBudget {
   version: typeof CURRENT_VERSION;
@@ -31,8 +32,7 @@ function isValidBudget(value: unknown): value is Budget {
     Array.isArray(b.expenses) &&
     Array.isArray(b.goals) &&
     Array.isArray(b.debts) &&
-    typeof b.currentBalance === 'number' &&
-    typeof b.weeklyGoalContribution === 'number'
+    typeof b.currentBalance === 'number'
   );
 }
 
@@ -65,13 +65,12 @@ function migrateFromV1(value: unknown): Budget | null {
     goals: withDefaultPriority(b.goals),
     debts: [],
     currentBalance: 0,
-    weeklyGoalContribution: 0,
   };
 }
 
 /**
- * v2 and v3 share a shape: both predate goal priority, debts, and the goal
- * dial, and neither stored a balance anyone had actually entered.
+ * v2 and v3 share a shape: both predate goal priority and debts, and neither
+ * stored a balance anyone had actually entered.
  */
 function migrateFromV2OrV3(value: unknown): Budget | null {
   if (!value || typeof value !== 'object') return null;
@@ -83,7 +82,6 @@ function migrateFromV2OrV3(value: unknown): Budget | null {
     goals: withDefaultPriority(b.goals),
     debts: [],
     currentBalance: 0,
-    weeklyGoalContribution: 0,
   };
 }
 
@@ -103,7 +101,6 @@ function migrateFromV4(value: unknown): Budget | null {
     goals: withDefaultPriority(b.goals),
     debts: [],
     currentBalance: Math.max(typeof b.currentBalance === 'number' ? b.currentBalance : 0, 0),
-    weeklyGoalContribution: 0,
   };
 }
 
@@ -130,7 +127,24 @@ function migrateFromV5(value: unknown): Budget | null {
     goals: withDefaultPriority(b.goals),
     debts,
     currentBalance: Math.max(b.currentBalance ?? 0, 0),
-    weeklyGoalContribution: Math.max(b.weeklyGoalContribution ?? 0, 0),
+  };
+}
+
+/**
+ * v6 carried `weeklyGoalContribution`, a dial that split spare money between
+ * the snowball and savings. Goals are now strictly post-debt, so there's
+ * nothing to split and the field is dropped.
+ */
+function migrateFromV6(value: unknown): Budget | null {
+  if (!value || typeof value !== 'object') return null;
+  const b = value as Partial<Budget>;
+  if (!b.income || !Array.isArray(b.expenses) || !Array.isArray(b.goals)) return null;
+  return {
+    income: b.income as Income,
+    expenses: b.expenses as ExpenseCategory[],
+    goals: withDefaultPriority(b.goals),
+    debts: Array.isArray(b.debts) ? (b.debts as Debt[]) : [],
+    currentBalance: Math.max(b.currentBalance ?? 0, 0),
   };
 }
 
@@ -138,6 +152,7 @@ function readBudget(value: unknown): Budget {
   if (!value || typeof value !== 'object') return createEmptyBudget();
   const s = value as { version?: unknown; budget?: unknown };
   if (s.version === CURRENT_VERSION && isValidBudget(s.budget)) return s.budget;
+  if (s.version === 6) return migrateFromV6(s.budget) ?? createEmptyBudget();
   if (s.version === 5) return migrateFromV5(s.budget) ?? createEmptyBudget();
   if (s.version === 4) return migrateFromV4(s.budget) ?? createEmptyBudget();
   if (s.version === 3 || s.version === 2) return migrateFromV2OrV3(s.budget) ?? createEmptyBudget();
@@ -250,16 +265,65 @@ export function useBudget() {
     [setBudget],
   );
 
-  const setWeeklyGoalContribution = useCallback(
-    (amount: number) => {
-      setBudget((prev) => ({ ...prev, weeklyGoalContribution: Math.max(amount, 0) }));
-    },
-    [setBudget],
-  );
-
   const resetBudget = useCallback(() => {
     setStored({ version: CURRENT_VERSION, budget: createEmptyBudget() });
   }, [setStored]);
+
+  /** The whole budget as a portable, human-readable document. */
+  const exportJson = useCallback(
+    () =>
+      JSON.stringify(
+        { app: 'tiny-budget', version: CURRENT_VERSION, exportedAt: new Date().toISOString(), budget },
+        null,
+        2,
+      ),
+    [budget],
+  );
+
+  /**
+   * Replaces everything with the contents of an exported file. Older exports
+   * are welcome: the text goes through the same migration chain as stored
+   * data, so a file written by any previous version still opens.
+   *
+   * Returns an error string rather than throwing — a bad paste is a normal
+   * thing for someone to do, not an exception.
+   */
+  const importJson = useCallback(
+    (text: string): string | null => {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        return "That file isn't valid JSON.";
+      }
+      if (!parsed || typeof parsed !== 'object') {
+        return "That file doesn't look like a Tiny Budget export.";
+      }
+      const envelope = parsed as { version?: unknown; budget?: unknown };
+      if (typeof envelope.version !== 'number' || !envelope.budget || typeof envelope.budget !== 'object') {
+        return "That file doesn't look like a Tiny Budget export.";
+      }
+      if (envelope.version > CURRENT_VERSION) {
+        return 'That file was made by a newer version of Tiny Budget.';
+      }
+      // readBudget falls back to an empty budget for anything it can't parse,
+      // which would silently wipe the current one — so check first.
+      const migrated = readBudget(envelope);
+      const looksEmpty =
+        migrated.expenses.length === 0 &&
+        migrated.goals.length === 0 &&
+        migrated.debts.length === 0 &&
+        migrated.income.amount === 0 &&
+        migrated.currentBalance === 0;
+      const sourceHadContent = JSON.stringify(envelope.budget).length > 80;
+      if (looksEmpty && sourceHadContent) {
+        return "That file couldn't be read as a budget.";
+      }
+      setStored({ version: CURRENT_VERSION, budget: migrated });
+      return null;
+    },
+    [setStored],
+  );
 
   const weeklyIncome = useMemo(() => weeklyIncomeAmount(budget.income), [budget.income]);
   const weeklyExpenses = useMemo(() => sumWeekly(budget.expenses), [budget.expenses]);
@@ -268,11 +332,19 @@ export function useBudget() {
     [budget.income, budget.expenses],
   );
 
-  const hasDebts = budget.debts.length > 0;
+  // "Has debts" means money is still owed, not that rows exist. A list of
+  // settled debts is a debt-free budget, and must read as one.
+  const hasDebts = budget.debts.some((debt) => debt.balance > 0);
 
-  // Minimums come off the top — they're contractual, not discretionary.
+  // Minimums come off the top — they're contractual, not discretionary. A
+  // settled debt owes no minimum however its row was left, so counting it
+  // would both overstate commitments and fake a shortfall.
   const debtMinimums = useMemo(
-    () => budget.debts.reduce((sum, debt) => sum + Math.max(debt.minimumPayment, 0), 0),
+    () =>
+      budget.debts.reduce(
+        (sum, debt) => (debt.balance > 0 ? sum + Math.max(debt.minimumPayment, 0) : sum),
+        0,
+      ),
     [budget.debts],
   );
 
@@ -283,29 +355,51 @@ export function useBudget() {
   const budgetShortfall = Math.max(debtMinimums - weeklyLeftover, 0);
   const postMinimum = Math.max(weeklyLeftover - debtMinimums, 0);
 
-  // Clamped here rather than on write: a temporary income dip shouldn't quietly
-  // overwrite the figure the user chose.
-  const goalContribution = hasDebts
-    ? Math.min(Math.max(budget.weeklyGoalContribution, 0), postMinimum)
-    : weeklyLeftover;
-  const debtWeeklyExtra = hasDebts ? postMinimum - goalContribution : 0;
+  // Debt first, in full. Nothing is diverted to goals while money is owed, so
+  // everything above the minimums goes at the snowball.
+  const debtWeeklyExtra = hasDebts ? postMinimum : 0;
 
   const snowball = useMemo(
     () => simulateSnowball(budget.debts, debtWeeklyExtra, budget.currentBalance),
     [budget.debts, debtWeeklyExtra, budget.currentBalance],
   );
 
+  /**
+   * The week goals start receiving money: the day the last debt dies. Until
+   * then the snowball takes everything, so goals sit exactly where they are.
+   * null means there's no route out of debt, so goals never begin at all.
+   */
+  const goalStartWeek = hasDebts ? snowball.debtFreeWeek : 0;
+
+  // Once the debts are gone their minimums stop too, so the whole weekly
+  // leftover lands on goals.
+  const goalWeeklyRate = goalStartWeek === null ? 0 : weeklyLeftover;
+
   // Debts get the cash first; goals only see what's left after every debt is
   // cleared. With no debts this is the whole balance, exactly as before.
   const goalFundingBalance = hasDebts ? snowball.lumpSumRemainder : budget.currentBalance;
 
-  const goalProgressById: Map<string, GoalProgress> = useMemo(
-    () => calculateGoalsProgress(budget.goals, goalContribution, goalFundingBalance),
-    [budget.goals, goalContribution, goalFundingBalance],
-  );
+  const goalProgressById: Map<string, GoalProgress> = useMemo(() => {
+    const base = calculateGoalsProgress(budget.goals, goalWeeklyRate, goalFundingBalance);
+    if (goalStartWeek === null || goalStartWeek === 0) return base;
+    // The waterfall solves from week 0 at a constant rate, which is exactly
+    // what happens *after* the debts clear — so the whole schedule just shifts
+    // forward by the payoff date. Already-met goals aren't waiting on anything
+    // and must not be pushed into the future with the rest.
+    const shifted = new Map<string, GoalProgress>();
+    for (const [id, progress] of base) {
+      if (progress.status !== 'on-track' || progress.weeksRemaining === null) {
+        shifted.set(id, progress);
+        continue;
+      }
+      const weeks = progress.weeksRemaining + goalStartWeek;
+      shifted.set(id, { ...progress, weeksRemaining: weeks, monthsRemaining: weeks / WEEKS_PER_MONTH });
+    }
+    return shifted;
+  }, [budget.goals, goalWeeklyRate, goalFundingBalance, goalStartWeek]);
 
-  // What's actually spendable this week — $0 whenever a goal is still
-  // absorbing the whole leftover, per the priority waterfall.
+  // What's actually spendable this week — $0 whenever a debt or a goal is
+  // still absorbing the whole leftover.
   const freeLeftover = useMemo(
     () => (hasDebts ? 0 : currentFreeLeftover(budget.goals, weeklyLeftover)),
     [hasDebts, budget.goals, weeklyLeftover],
@@ -322,8 +416,9 @@ export function useBudget() {
     debtMinimums,
     budgetShortfall,
     postMinimum,
-    goalContribution,
     debtWeeklyExtra,
+    goalStartWeek,
+    goalWeeklyRate,
     goalFundingBalance,
     snowball,
     setIncome,
@@ -337,7 +432,8 @@ export function useBudget() {
     addDebt,
     updateDebt,
     removeDebt,
-    setWeeklyGoalContribution,
     resetBudget,
+    exportJson,
+    importJson,
   };
 }

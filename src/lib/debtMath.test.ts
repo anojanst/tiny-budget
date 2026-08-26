@@ -3,7 +3,6 @@ import {
   activeDebtId,
   buildDebtPayoffSeries,
   debtSpendAtWeek,
-  diversionImpact,
   simulateSnowball,
   snowballOrder,
 } from './debtMath';
@@ -95,6 +94,42 @@ describe('simulateSnowball', () => {
     // Nothing contractual, but the whole 40/wk extra still goes at it.
     const result = simulateSnowball(debts, 40);
     expect(result.outcomeById.get('family')!.payoffWeek).toBe(20);
+  });
+});
+
+describe('simulateSnowball — settled debts left in the list', () => {
+  it('ignores the minimum on a debt that is already cleared', () => {
+    const debts = [
+      debt({ id: 'settled', balance: 0, minimumPayment: 60 }),
+      debt({ id: 'live', balance: 400, minimumPayment: 20 }),
+    ];
+    // The user affords 50/wk: 20 of live minimums plus 30 spare. The settled
+    // row's stale 60 must not be spent — budgeting it would pay 80/wk out of
+    // a 50/wk budget and report a payoff date two months too early.
+    const result = simulateSnowball(debts, 30);
+    expect(result.outcomeById.get('live')!.payoffWeek).toBe(8);
+  });
+
+  it('still frees a minimum when the lump sum clears that debt today', () => {
+    const debts = [
+      debt({ id: 'small', balance: 100, minimumPayment: 40 }),
+      debt({ id: 'big', balance: 300, minimumPayment: 10 }),
+    ];
+    // 100 cash wipes `small` at week 0. Its 40/wk was genuinely being paid
+    // until now, so it rolls into the attack: 50/wk against 300 -> 6 weeks.
+    const result = simulateSnowball(debts, 0, 100);
+    expect(result.outcomeById.get('small')!.payoffWeek).toBe(0);
+    expect(result.outcomeById.get('big')!.payoffWeek).toBe(6);
+  });
+
+  it('reports debt-free when every listed debt is settled', () => {
+    const debts = [
+      debt({ id: 'a', balance: 0, minimumPayment: 25 }),
+      debt({ id: 'b', balance: 0, minimumPayment: 40 }),
+    ];
+    const result = simulateSnowball(debts, 100);
+    expect(result.debtFreeWeek).toBe(0);
+    expect(result.totalPaid).toBeCloseTo(0);
   });
 });
 
@@ -256,19 +291,5 @@ describe('buildDebtPayoffSeries', () => {
 
   it('returns nothing when there are no debts', () => {
     expect(buildDebtPayoffSeries([], 100).points).toEqual([]);
-  });
-});
-
-describe('diversionImpact', () => {
-  it('quantifies the delay from funding goals instead of debt', () => {
-    const debts = [debt({ id: 'a', balance: 2000, minimumPayment: 25 })];
-    const impact = diversionImpact(debts, 200, 100);
-    expect(impact.weeksDelayed!).toBeGreaterThan(0);
-    expect(impact.debtFreeWeekWith!).toBeGreaterThan(impact.debtFreeWeekWithout!);
-  });
-
-  it('costs nothing when nothing is diverted', () => {
-    const debts = [debt({ id: 'a', balance: 2000, minimumPayment: 25 })];
-    expect(diversionImpact(debts, 200, 0).weeksDelayed).toBe(0);
   });
 });

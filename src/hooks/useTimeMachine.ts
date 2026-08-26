@@ -12,10 +12,12 @@ import type { Goal } from '@/types/budget';
 
 interface TimeMachineInput {
   goals: Goal[];
-  /** Total income minus expenses — the whole weekly pool, before any split. */
+  /** Total income minus expenses — the whole weekly pool. */
   weeklyLeftover: number;
-  /** The slice of that pool going to goals. */
-  goalContribution: number;
+  /** What goals receive per week once they start receiving anything. */
+  goalWeeklyRate: number;
+  /** Week goals begin being funded: the debt-free date, or 0 with no debt. */
+  goalStartWeek: number | null;
   /** Cash on hand today, before the snowball's week-0 lump sum. */
   currentBalance: number;
   hasDebts: boolean;
@@ -36,7 +38,8 @@ interface TimeMachineInput {
 export function useTimeMachine({
   goals,
   weeklyLeftover,
-  goalContribution,
+  goalWeeklyRate,
+  goalStartWeek,
   currentBalance,
   hasDebts,
   snowball,
@@ -55,9 +58,13 @@ export function useTimeMachine({
   // Cash handed to lenders by then. Plateaus at the payoff date.
   const debtSpend = hasDebts ? debtSpendAtWeek(snowball, weeks) : 0;
 
+  // Goals only start accruing once the debts are gone, so the waterfall is
+  // asked about the time elapsed *since* that date, not since today.
+  const goalWeeks = goalStartWeek === null ? 0 : Math.max(weeks - goalStartWeek, 0);
+
   const goalAllocation = useMemo(
-    () => totalGoalAllocationAtWeeks(goals, goalContribution, weeks, goalFundingBalance),
-    [goals, goalContribution, weeks, goalFundingBalance],
+    () => totalGoalAllocationAtWeeks(goals, goalWeeklyRate, goalWeeks, goalFundingBalance),
+    [goals, goalWeeklyRate, goalWeeks, goalFundingBalance],
   );
 
   const balance = inflow - debtSpend;
@@ -69,8 +76,8 @@ export function useTimeMachine({
   const debtsClearedByHorizon = debtFreeWeek !== null && weeks >= debtFreeWeek;
 
   const projections = useMemo(
-    () => projectGoalsAt(goals, goalContribution, weeks, goalFundingBalance),
-    [goals, goalContribution, weeks, goalFundingBalance],
+    () => projectGoalsAt(goals, goalWeeklyRate, goalWeeks, goalFundingBalance),
+    [goals, goalWeeklyRate, goalWeeks, goalFundingBalance],
   );
 
   // Keyed for the Goals widget, which is what actually displays these now.

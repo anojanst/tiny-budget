@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { CategoryCombobox } from '@/components/ui/category-combobox';
+import { EXPENSE_CATEGORIES } from '@/lib/expenseCategories';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Debt, Frequency, Income, MoneyEntry } from '@/types/budget';
@@ -159,10 +161,12 @@ export function OnboardingWizard({
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Input
+                <CategoryCombobox
                   value={expenseName}
-                  onChange={(e) => setExpenseName(e.target.value)}
+                  onValueChange={setExpenseName}
+                  items={EXPENSE_CATEGORIES}
                   placeholder="e.g. Rent"
+                  aria-label="Expense name"
                   className="min-w-28 flex-1"
                   onKeyDown={(e) => e.key === 'Enter' && handleAddExpense()}
                 />

@@ -17,7 +17,7 @@ interface GoalsSectionProps {
   horizonLabel?: string;
   /** Drives the "why isn't this moving" copy, which differs while in debt. */
   hasDebts: boolean;
-  goalContribution: number;
+  goalStartWeek: number | null;
   onAdd: (name: string, targetAmount: number, currentSaved: number, priority: number) => void;
   onUpdate: (id: string, patch: Partial<Omit<Goal, 'id'>>) => void;
   onRemove: (id: string) => void;
@@ -29,7 +29,7 @@ export function GoalsSection({
   projectionById,
   horizonLabel,
   hasDebts,
-  goalContribution,
+  goalStartWeek,
   onAdd,
   onUpdate,
   onRemove,
@@ -48,11 +48,11 @@ export function GoalsSection({
     return counts;
   }, [goals]);
 
-  // While in debt with the dial at zero, "earn more" is the wrong advice —
-  // the money exists, it's just all committed to the snowball on purpose.
+  // While in debt, "earn more" is the wrong advice — the money exists, it's
+  // just all committed to the snowball on purpose until the debts are gone.
   const unreachableHint =
-    hasDebts && goalContribution <= 0
-      ? 'Everything spare is going at your debts. Move the Debt vs. savings dial above to fund this.'
+    hasDebts && goalStartWeek === null
+      ? "Your debts aren't being paid off, so nothing will ever reach this. Fix that on the Debts page."
       : 'Increase income or reduce expenses to make progress on this goal.';
 
   const handleAdd = () => {
@@ -69,7 +69,11 @@ export function GoalsSection({
     <Card>
       <WidgetHeading
         title="Savings goals"
-        description="Lower priority number is funded first. Goals sharing a number split the money evenly."
+        description={
+          hasDebts
+            ? 'Funded after your debts are cleared. Lower priority number goes first; goals sharing a number split the money evenly.'
+            : 'Lower priority number is funded first. Goals sharing a number split the money evenly.'
+        }
         trailing={
           horizonLabel ? (
             <span className="shrink-0 text-xs font-normal text-muted-foreground">

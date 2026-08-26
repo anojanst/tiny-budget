@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Separator } from '@/components/ui/separator';
 import { MoneyEntryRow } from '@/components/MoneyEntryRow';
+import { CategoryCombobox } from '@/components/ui/category-combobox';
 import { WidgetHeading } from '@/components/WidgetHeading';
+import { EXPENSE_CATEGORIES } from '@/lib/expenseCategories';
 import { formatCurrency } from '@/lib/format';
 import type { Frequency, MoneyEntry } from '@/types/budget';
 import { Plus } from 'lucide-react';
@@ -83,10 +85,12 @@ export function MoneyEntrySection({
       </CardContent>
 
       <CardFooter className="flex-wrap gap-2">
-        <Input
+        <CategoryCombobox
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onValueChange={setName}
+          items={EXPENSE_CATEGORIES}
           placeholder="Name"
+          aria-label="New expense name"
           className="min-w-28 flex-1"
           onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
         />

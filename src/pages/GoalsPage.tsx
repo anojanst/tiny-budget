@@ -1,8 +1,9 @@
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageHeader } from '@/components/shell/PageHeader';
 import { GoalsSection } from '@/components/GoalsSection';
-import { GoalDiversionDial } from '@/components/GoalDiversionDial';
 import { SavingsProjection } from '@/components/SavingsProjection';
-import { formatShortDate } from '@/lib/dates';
+import { formatCurrency, formatWeeksRemaining } from '@/lib/format';
+import { addWeeks, formatShortDate } from '@/lib/dates';
 import type { useBudget } from '@/hooks/useBudget';
 import type { useTimeMachine } from '@/hooks/useTimeMachine';
 
@@ -15,51 +16,55 @@ export function GoalsPage({ budget, timeMachine }: GoalsPageProps) {
   const {
     budget: data,
     hasDebts,
-    postMinimum,
-    goalContribution,
+    goalStartWeek,
+    goalWeeklyRate,
     goalFundingBalance,
-    budgetShortfall,
     goalProgressById,
-    setWeeklyGoalContribution,
     addGoal,
     updateGoal,
     removeGoal,
   } = budget;
 
   const horizonLabel = timeMachine.targetDate ? formatShortDate(timeMachine.targetDate) : undefined;
+  const startsWaiting = hasDebts && goalStartWeek !== null && goalStartWeek > 0;
 
   return (
     <>
       <PageHeader
         title="Goals"
-        subtitle={
-          hasDebts
-            ? "What you're saving for once the debt is gone — and what saving now costs."
-            : 'What you’re putting money aside for, funded by priority.'
-        }
+        subtitle="Focused saving — what your money goes to once the debt is gone."
       />
 
-      <div className="space-y-4">
-        {/* While in debt, the split dial comes first: it's the decision that
-            governs whether anything below it gets funded at all. */}
-        {hasDebts && (
-          <GoalDiversionDial
-            debts={data.debts}
-            postMinimum={postMinimum}
-            goalContribution={goalContribution}
-            currentBalance={data.currentBalance}
-            budgetShortfall={budgetShortfall}
-            onChange={setWeeklyGoalContribution}
-          />
-        )}
+      {/* The single most important thing to understand on this page: saving
+          hasn't started yet, and that's the plan working, not a fault. */}
+      {startsWaiting && (
+        <Alert className="mb-4">
+          <AlertDescription>
+            Your debts come first, in full. Saving starts in{' '}
+            {formatWeeksRemaining(goalStartWeek)} — around{' '}
+            {formatShortDate(addWeeks(timeMachine.today, goalStartWeek))} — when the last debt
+            is paid off. From then, {formatCurrency(goalWeeklyRate)}/wk goes at these goals.
+          </AlertDescription>
+        </Alert>
+      )}
 
+      {hasDebts && goalStartWeek === null && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>
+            There's no route out of debt yet, so nothing will reach these goals. Fix that on the
+            Debts page first.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="space-y-4">
         <GoalsSection
           goals={data.goals}
           goalProgressById={goalProgressById}
           projectionById={timeMachine.projectionById}
           horizonLabel={horizonLabel}
           hasDebts={hasDebts}
-          goalContribution={goalContribution}
+          goalStartWeek={goalStartWeek}
           onAdd={addGoal}
           onUpdate={updateGoal}
           onRemove={removeGoal}
@@ -70,8 +75,9 @@ export function GoalsPage({ budget, timeMachine }: GoalsPageProps) {
             repeated on two screens. */}
         <SavingsProjection
           goals={data.goals}
-          weeklyLeftover={goalContribution}
+          weeklyLeftover={goalWeeklyRate}
           currentBalance={goalFundingBalance}
+          startWeek={goalStartWeek ?? 0}
         />
       </div>
     </>
