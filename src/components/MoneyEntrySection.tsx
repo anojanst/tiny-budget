@@ -5,16 +5,14 @@ import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Separator } from '@/components/ui/separator';
 import { MoneyEntryRow } from '@/components/MoneyEntryRow';
-import { WidgetHeading, widgetCardClass, type WidgetAccent } from '@/components/WidgetHeading';
+import { WidgetHeading } from '@/components/WidgetHeading';
 import { formatCurrency } from '@/lib/format';
-import { cn } from '@/lib/utils';
 import type { Frequency, MoneyEntry } from '@/types/budget';
-import { Plus, type LucideIcon } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface MoneyEntrySectionProps {
   title: string;
-  icon: LucideIcon;
-  accent: WidgetAccent;
+  description?: string;
   emptyLabel: string;
   entries: MoneyEntry[];
   weeklyTotal: number;
@@ -25,8 +23,7 @@ interface MoneyEntrySectionProps {
 
 export function MoneyEntrySection({
   title,
-  icon,
-  accent,
+  description,
   emptyLabel,
   entries,
   weeklyTotal,
@@ -36,7 +33,7 @@ export function MoneyEntrySection({
 }: MoneyEntrySectionProps) {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
-  const [frequency, setFrequency] = useState<Frequency>('weekly');
+  const [frequency, setFrequency] = useState<Frequency>('monthly');
 
   const handleAdd = () => {
     const parsedAmount = Number(amount);
@@ -44,15 +41,13 @@ export function MoneyEntrySection({
     onAdd(name.trim(), parsedAmount, frequency);
     setName('');
     setAmount('');
-    setFrequency('weekly');
   };
 
   return (
-    <Card className={cn('h-full', widgetCardClass(accent))}>
+    <Card>
       <WidgetHeading
-        icon={icon}
         title={title}
-        accent={accent}
+        description={description}
         trailing={
           <span className="shrink-0 text-sm font-normal tabular-nums text-muted-foreground">
             {formatCurrency(weeklyTotal)}/wk
@@ -60,10 +55,10 @@ export function MoneyEntrySection({
         }
       />
 
-      {/* The list is the only part allowed to grow; it scrolls inside the card so
-          the page itself never does. */}
-      <CardContent className="min-h-0 flex-1 overflow-y-auto">
-        {entries.length === 0 && <p className="text-sm text-muted-foreground">{emptyLabel}</p>}
+      <CardContent>
+        {entries.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">{emptyLabel}</p>
+        )}
         {entries.map((entry, index) => (
           <div key={entry.id}>
             {index > 0 && <Separator />}
@@ -72,8 +67,7 @@ export function MoneyEntrySection({
         ))}
       </CardContent>
 
-      {/* Pinned so adding an entry never requires scrolling to find the form. */}
-      <CardFooter className="shrink-0 flex-wrap gap-2">
+      <CardFooter className="flex-wrap gap-2">
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}

@@ -12,11 +12,11 @@ function Card({
       data-slot="card"
       data-size={size}
       className={cn(
-        // Liquid glass: a translucent, saturated blur of whatever's behind
-        // the card (the page's ambient gradient) rather than an opaque fill.
-        // The inset highlight simulates light catching the top edge of glass;
-        // the outer shadow keeps it feeling like it's floating above the page.
-        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl border border-white/60 bg-card/40 py-(--card-spacing) text-sm text-card-foreground shadow-[0_16px_48px_-12px_rgba(0,0,0,0.28),inset_0_1px_0_0_rgba(255,255,255,0.85),inset_0_-1px_0_0_rgba(255,255,255,0.2)] backdrop-blur-2xl backdrop-saturate-200 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl dark:border-white/15 dark:bg-card/25 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.65),inset_0_1px_0_0_rgba(255,255,255,0.12),inset_0_-1px_0_0_rgba(255,255,255,0.03)]",
+        // Solid paper: an opaque white panel separated from the page by a
+        // hairline border, with only enough shadow to lift it off the warm
+        // background. Depth comes from the border and the page tint, not from
+        // blur or heavy drop shadows.
+        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl border border-border bg-card py-(--card-spacing) text-sm text-card-foreground shadow-[0_1px_2px_0_rgba(16,24,20,0.04)] [--card-spacing:--spacing(5)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(4)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
         className
       )}
       {...props}
@@ -88,7 +88,7 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-footer"
       className={cn(
-        "flex items-center rounded-b-xl border-t border-white/40 bg-white/10 p-(--card-spacing) dark:border-white/10 dark:bg-black/10",
+        "flex items-center rounded-b-xl border-t border-border bg-muted/40 p-(--card-spacing)",
         className
       )}
       {...props}

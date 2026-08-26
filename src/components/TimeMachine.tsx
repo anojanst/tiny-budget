@@ -2,11 +2,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { WidgetHeading, widgetCardClass } from '@/components/WidgetHeading';
+import { WidgetHeading } from '@/components/WidgetHeading';
 import { formatCurrency } from '@/lib/format';
 import { addMonths, formatShortDate, toDateInputValue } from '@/lib/dates';
 import { cn } from '@/lib/utils';
-import { CalendarClock } from 'lucide-react';
 
 const PRESETS = [
   { label: '1M', months: 1 },
@@ -42,8 +41,8 @@ export function TimeMachine({
   const isFullyCommitted = !inDebt && freeBalance < 0.005 && goalAllocation > 0.005;
 
   return (
-    <Card className={cn('h-full', widgetCardClass('amber'))}>
-      <WidgetHeading icon={CalendarClock} title="Time machine" accent="amber" />
+    <Card className="h-full">
+      <WidgetHeading title="Time machine" description="Where you'd stand on a future date." />
       {/* Same "controls left, result right" grammar as Right Now: the dial
           you turn, and what it works out to. Per-goal detail now lives in the
           Goals widget itself, which is the surface it's actually edited on. */}
@@ -95,11 +94,7 @@ export function TimeMachine({
           <p
             className={cn(
               'text-4xl font-semibold tracking-tight',
-              inDebt
-                ? 'text-destructive'
-                : isFullyCommitted
-                  ? 'text-violet-600 dark:text-violet-400'
-                  : 'text-emerald-600 dark:text-emerald-400',
+              inDebt ? 'text-destructive' : isFullyCommitted ? 'text-foreground' : 'text-primary',
             )}
           >
             {formatCurrency(Math.abs(inDebt ? balance : freeBalance))}

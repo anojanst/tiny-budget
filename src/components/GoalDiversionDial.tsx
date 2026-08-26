@@ -2,12 +2,10 @@ import { memo, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Slider } from '@/components/ui/slider';
-import { WidgetHeading, widgetCardClass } from '@/components/WidgetHeading';
+import { WidgetHeading } from '@/components/WidgetHeading';
 import { diversionImpact } from '@/lib/debtMath';
 import { formatCurrency } from '@/lib/format';
-import { cn } from '@/lib/utils';
 import type { Debt } from '@/types/budget';
-import { Split } from 'lucide-react';
 
 interface GoalDiversionDialProps {
   debts: Debt[];
@@ -38,20 +36,23 @@ export const GoalDiversionDial = memo(function GoalDiversionDial({
   const toDebt = Math.max(postMinimum - goalContribution, 0);
 
   return (
-    <Card className={cn('h-full', widgetCardClass('violet'))}>
-      <WidgetHeading icon={Split} title="Debt vs. savings" accent="violet" />
+    <Card className="h-full">
+      <WidgetHeading
+        title="Debt vs. savings"
+        description="Split what's left after minimum payments."
+      />
       <CardContent className="flex flex-1 flex-col justify-center gap-4">
         <div className="flex items-baseline justify-between gap-4">
           <div>
             <p className="text-xs text-muted-foreground">To debt</p>
-            <p className="text-2xl font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+            <p className="text-2xl font-semibold tabular-nums text-foreground">
               {formatCurrency(toDebt)}
               <span className="ml-1 text-sm font-normal text-muted-foreground">/wk</span>
             </p>
           </div>
           <div className="text-right">
             <p className="text-xs text-muted-foreground">To goals</p>
-            <p className="text-2xl font-semibold tabular-nums text-violet-600 dark:text-violet-400">
+            <p className="text-2xl font-semibold tabular-nums text-primary">
               {formatCurrency(goalContribution)}
               <span className="ml-1 text-sm font-normal text-muted-foreground">/wk</span>
             </p>

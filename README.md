@@ -73,9 +73,17 @@ src/
   hooks/useBudget.ts    persisted budget state + versioned migrations
   hooks/useTimeMachine.ts  the shared "what if I wait until X" horizon
   hooks/useOnboarding.ts   first-run setup flag
-  components/           dashboard widgets
+  hooks/useHashRoute.ts    tiny hash router (no dependency)
+  pages/                one file per screen
+  components/shell/     sidebar, mobile nav, page header
+  components/           widgets
   components/ui/        shadcn/ui primitives
 ```
+
+The app is split across five screens — Overview, Debts, Budget, Goals,
+Settings — rather than one dense dashboard. Each screen holds only the widgets
+that screen is about, so nothing has to scroll inside its own card: the page
+scrolls, the widgets don't.
 
 Both math modules are pure functions with no React imports, so the waterfall and
 snowball behaviour are covered by tests independently of the UI.

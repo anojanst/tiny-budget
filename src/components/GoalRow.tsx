@@ -12,9 +12,9 @@ import { X } from 'lucide-react';
 /** The bar's solid fill carries the goal's real state; the ghost behind it
  * (when present) is the Time Machine's projection for the selected date. */
 const BAR_FILL: Record<GoalStatus, string> = {
-  met: 'bg-emerald-500 dark:bg-emerald-400',
-  unreachable: 'bg-rose-500 dark:bg-rose-400',
-  'on-track': 'bg-violet-500 dark:bg-violet-400',
+  met: 'bg-primary',
+  unreachable: 'bg-destructive',
+  'on-track': 'bg-primary/70',
 };
 
 interface GoalRowProps {
@@ -25,11 +25,13 @@ interface GoalRowProps {
   /** Where this goal lands at the Time Machine's selected date, if set. */
   projection?: GoalAtDate;
   horizonLabel?: string;
+  /** Why nothing is reaching this goal — the cause differs while in debt. */
+  unreachableHint: string;
   onUpdate: (id: string, patch: Partial<Omit<Goal, 'id'>>) => void;
   onRemove: (id: string) => void;
 }
 
-export const GoalRow = memo(function GoalRow({ goal, progress, tierSize, projection, horizonLabel, onUpdate, onRemove }: GoalRowProps) {
+export const GoalRow = memo(function GoalRow({ goal, progress, tierSize, projection, horizonLabel, unreachableHint, onUpdate, onRemove }: GoalRowProps) {
   const currentPercent = progress.percentComplete;
   const projectedPercent = projection?.projectedPercent ?? currentPercent;
   const showsProjection = projectedPercent > currentPercent + 0.5;
@@ -100,7 +102,7 @@ export const GoalRow = memo(function GoalRow({ goal, progress, tierSize, project
               progress the Time Machine's selected date would add. */}
           {showsProjection && (
             <div
-              className="absolute inset-y-0 left-0 rounded-full bg-amber-500/35 dark:bg-amber-400/35"
+              className="absolute inset-y-0 left-0 rounded-full bg-primary/25"
               style={{ width: `${projectedPercent}%` }}
             />
           )}
@@ -115,7 +117,7 @@ export const GoalRow = memo(function GoalRow({ goal, progress, tierSize, project
         <span className="shrink-0 text-right text-sm tabular-nums text-muted-foreground">
           {Math.round(currentPercent)}%
           {showsProjection && (
-            <span className="text-amber-600 dark:text-amber-400">
+            <span className="text-primary">
               {' → '}
               {Math.round(projectedPercent)}%
             </span>
@@ -125,9 +127,7 @@ export const GoalRow = memo(function GoalRow({ goal, progress, tierSize, project
 
       <div className="mt-2">
         {progress.status === 'met' && (
-          <Badge className="bg-emerald-500/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
-            Goal met!
-          </Badge>
+          <Badge className="bg-primary text-primary-foreground">Goal met!</Badge>
         )}
         {progress.status === 'on-track' && progress.weeksRemaining !== null && (
           <p className="text-sm text-muted-foreground">
@@ -142,9 +142,7 @@ export const GoalRow = memo(function GoalRow({ goal, progress, tierSize, project
         )}
         {progress.status === 'unreachable' && (
           <Alert variant="destructive">
-            <AlertDescription>
-              Increase income or reduce expenses to make progress on this goal.
-            </AlertDescription>
+            <AlertDescription>{unreachableHint}</AlertDescription>
           </Alert>
         )}
         {showsProjection && horizonLabel && (

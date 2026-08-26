@@ -4,11 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { GoalRow } from '@/components/GoalRow';
-import { WidgetHeading, widgetCardClass } from '@/components/WidgetHeading';
-import { cn } from '@/lib/utils';
+import { WidgetHeading } from '@/components/WidgetHeading';
 import type { Goal } from '@/types/budget';
 import type { GoalAtDate, GoalProgress } from '@/lib/budgetMath';
-import { Plus, Target } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface GoalsSectionProps {
   goals: Goal[];
@@ -16,6 +15,9 @@ interface GoalsSectionProps {
   /** Projected standing at the Time Machine's selected date, keyed by goal id. */
   projectionById: Map<string, GoalAtDate>;
   horizonLabel?: string;
+  /** Drives the "why isn't this moving" copy, which differs while in debt. */
+  hasDebts: boolean;
+  goalContribution: number;
   onAdd: (name: string, targetAmount: number, currentSaved: number, priority: number) => void;
   onUpdate: (id: string, patch: Partial<Omit<Goal, 'id'>>) => void;
   onRemove: (id: string) => void;
@@ -26,6 +28,8 @@ export function GoalsSection({
   goalProgressById,
   projectionById,
   horizonLabel,
+  hasDebts,
+  goalContribution,
   onAdd,
   onUpdate,
   onRemove,
@@ -44,6 +48,13 @@ export function GoalsSection({
     return counts;
   }, [goals]);
 
+  // While in debt with the dial at zero, "earn more" is the wrong advice —
+  // the money exists, it's just all committed to the snowball on purpose.
+  const unreachableHint =
+    hasDebts && goalContribution <= 0
+      ? 'Everything spare is going at your debts. Move the Debt vs. savings dial above to fund this.'
+      : 'Increase income or reduce expenses to make progress on this goal.';
+
   const handleAdd = () => {
     const parsedTarget = Number(target);
     const parsedPriority = Math.max(1, Math.round(Number(priority)) || 1);
@@ -55,11 +66,10 @@ export function GoalsSection({
   };
 
   return (
-    <Card className={cn('h-full', widgetCardClass('violet'))}>
+    <Card>
       <WidgetHeading
-        icon={Target}
-        title="Goals"
-        accent="violet"
+        title="Savings goals"
+        description="Lower priority number is funded first. Goals sharing a number split the money evenly."
         trailing={
           horizonLabel ? (
             <span className="shrink-0 text-xs font-normal text-muted-foreground">
@@ -69,22 +79,25 @@ export function GoalsSection({
         }
       />
 
-      <CardContent className="min-h-0 flex-1 overflow-y-auto">
+      <CardContent>
         {goals.length === 0 && (
-          <p className="text-sm text-muted-foreground">No goals yet — add one below.</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            No goals yet — add one below.
+          </p>
         )}
         {sortedGoals.map((goal, index) => {
           const progress = goalProgressById.get(goal.id);
           if (!progress) return null;
           return (
             <div key={goal.id}>
-              {index > 0 && <Separator className="my-2" />}
+              {index > 0 && <Separator className="my-1" />}
               <GoalRow
                 goal={goal}
                 progress={progress}
                 tierSize={tierSizeByPriority.get(goal.priority) ?? 1}
                 projection={projectionById.get(goal.id)}
                 horizonLabel={horizonLabel}
+                unreachableHint={unreachableHint}
                 onUpdate={onUpdate}
                 onRemove={onRemove}
               />
@@ -93,7 +106,7 @@ export function GoalsSection({
         })}
       </CardContent>
 
-      <CardFooter className="shrink-0 flex-wrap gap-2">
+      <CardFooter className="flex-wrap gap-2">
         <div className="relative w-14 shrink-0" title="Priority — lower number is funded first">
           <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-muted-foreground">
             #
@@ -128,7 +141,7 @@ export function GoalsSection({
         />
         <Button size="sm" onClick={handleAdd}>
           <Plus className="size-4" />
-          Add Goal
+          Add goal
         </Button>
       </CardFooter>
     </Card>

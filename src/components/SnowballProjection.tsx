@@ -9,12 +9,10 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
-import { WidgetHeading, widgetCardClass } from '@/components/WidgetHeading';
+import { WidgetHeading } from '@/components/WidgetHeading';
 import { buildDebtPayoffSeries } from '@/lib/debtMath';
 import { formatCurrency } from '@/lib/format';
-import { cn } from '@/lib/utils';
 import type { Debt } from '@/types/budget';
-import { TrendingDown } from 'lucide-react';
 
 // Fixed slot order — a debt's band keeps its hue as others are paid off.
 const SERIES_COLORS = [
@@ -55,20 +53,23 @@ export const SnowballProjection = memo(function SnowballProjection({
   );
 
   return (
-    <Card className={cn('h-full', widgetCardClass('rose'))}>
-      <WidgetHeading icon={TrendingDown} title="Payoff projection" accent="rose" />
+    <Card className="h-full">
+      <WidgetHeading
+        title="Payoff projection"
+        description={
+          points.length === 0
+            ? undefined
+            : `${formatCurrency(weeklyExtra)}/wk on top of minimums — each band drops out as that debt is cleared.`
+        }
+      />
       <CardContent className="flex min-h-0 flex-1 flex-col">
         {points.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="py-6 text-center text-sm text-muted-foreground">
             Add a debt and a payment to see the payoff curve.
           </p>
         ) : (
           <>
-            <p className="mb-3 shrink-0 text-sm text-muted-foreground">
-              {formatCurrency(weeklyExtra)}/wk on top of minimums — each band drops out as that
-              debt is cleared.
-            </p>
-            <ChartContainer config={config} className="aspect-auto min-h-40 w-full flex-1">
+            <ChartContainer config={config} className="aspect-auto h-64 w-full">
               <AreaChart data={points} margin={{ top: 8, right: 12, bottom: 4, left: 4 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis

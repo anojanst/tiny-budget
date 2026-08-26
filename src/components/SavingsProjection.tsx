@@ -9,12 +9,10 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
-import { WidgetHeading, widgetCardClass } from '@/components/WidgetHeading';
+import { WidgetHeading } from '@/components/WidgetHeading';
 import { buildGoalSavingsSeries, projectionHorizonWeeks } from '@/lib/budgetMath';
 import { formatCurrency } from '@/lib/format';
-import { cn } from '@/lib/utils';
 import type { Goal } from '@/types/budget';
-import { TrendingUp } from 'lucide-react';
 
 // Fixed slot order — a goal's band keeps its hue as other goals are added or removed.
 const SERIES_COLORS = [
@@ -65,19 +63,23 @@ export const SavingsProjection = memo(function SavingsProjection({ goals, weekly
   );
 
   return (
-    <Card className={cn('h-full', widgetCardClass('emerald'))}>
-      <WidgetHeading icon={TrendingUp} title="Projected savings" accent="emerald" />
+    <Card className="h-full">
+      <WidgetHeading
+        title="Projected savings"
+        description={
+          points.length === 0
+            ? undefined
+            : `At ${formatCurrency(weeklyLeftover)}/wk, held steady — lowest priority number fills first.`
+        }
+      />
       <CardContent className="flex min-h-0 flex-1 flex-col">
         {points.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No leftover or balance to fund goals with yet — the projection appears once there is.
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Nothing funding goals yet — add a goal, or free up money each week.
           </p>
         ) : (
           <>
-            <p className="mb-3 shrink-0 text-sm text-muted-foreground">
-              At {formatCurrency(weeklyLeftover)}/wk, held steady — lowest priority number fills first.
-            </p>
-            <ChartContainer config={config} className="aspect-auto min-h-40 w-full flex-1">
+            <ChartContainer config={config} className="aspect-auto h-64 w-full">
               <AreaChart data={points} margin={{ top: 8, right: 12, bottom: 4, left: 4 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis

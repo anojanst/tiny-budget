@@ -4,13 +4,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { DebtRow } from '@/components/DebtRow';
-import { WidgetHeading, widgetCardClass } from '@/components/WidgetHeading';
+import { WidgetHeading } from '@/components/WidgetHeading';
 import { formatCurrency } from '@/lib/format';
-import { cn } from '@/lib/utils';
 import type { Debt } from '@/types/budget';
 import type { SnowballResult } from '@/lib/debtMath';
 import { activeDebtId } from '@/lib/debtMath';
-import { Plus, Landmark } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface DebtsSectionProps {
   debts: Debt[];
@@ -51,11 +50,10 @@ export function DebtsSection({
   };
 
   return (
-    <Card className={cn('h-full', widgetCardClass('rose'))}>
+    <Card>
       <WidgetHeading
-        icon={Landmark}
-        title="Debts"
-        accent="rose"
+        title="Your debts"
+        description="Smallest balance first. Every spare dollar hits the top one until it's gone, then rolls into the next."
         trailing={
           <span className="shrink-0 text-sm font-normal tabular-nums text-muted-foreground">
             {formatCurrency(debtMinimums)}/wk min
@@ -63,21 +61,15 @@ export function DebtsSection({
         }
       />
 
-      <CardContent className="min-h-0 flex-1 overflow-y-auto">
+      <CardContent>
         {debts.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            No debts — you're debt free. Add one below if that changes.
-          </p>
-        )}
-        {debts.length > 0 && (
-          <p className="mb-2 text-xs text-muted-foreground">
-            Smallest balance first. Every spare dollar hits the top one until it's gone, then
-            rolls into the next.
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            No debts listed — you're debt free. Add one below if that changes.
           </p>
         )}
         {snowball.order.map((debt, index) => (
           <div key={debt.id}>
-            {index > 0 && <Separator className="my-2" />}
+            {index > 0 && <Separator className="my-1" />}
             <DebtRow
               debt={debt}
               position={index + 1}
@@ -90,7 +82,7 @@ export function DebtsSection({
         ))}
       </CardContent>
 
-      <CardFooter className="shrink-0 flex-wrap gap-2">
+      <CardFooter className="flex-wrap gap-2">
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -120,7 +112,7 @@ export function DebtsSection({
         />
         <Button size="sm" onClick={handleAdd}>
           <Plus className="size-4" />
-          Add Debt
+          Add debt
         </Button>
       </CardFooter>
     </Card>

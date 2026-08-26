@@ -40,89 +40,95 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
-    --radius-sm: calc(var(--radius) * 0.6);
-    --radius-md: calc(var(--radius) * 0.8);
+    --radius-sm: calc(var(--radius) * 0.5);
+    --radius-md: calc(var(--radius) * 0.7);
     --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) * 1.4);
-    --radius-2xl: calc(var(--radius) * 1.8);
-    --radius-3xl: calc(var(--radius) * 2.2);
-    --radius-4xl: calc(var(--radius) * 2.6);
+    --radius-xl: calc(var(--radius) * 1.35);
+    --radius-2xl: calc(var(--radius) * 1.7);
+    --radius-3xl: calc(var(--radius) * 2.1);
+    --radius-4xl: calc(var(--radius) * 2.5);
 }
 
+/*
+ * Calm, paper-like surface: a warm off-white page with solid white cards
+ * floating on it. The only saturated color in the whole system is the brand
+ * green, which is what makes a single green stat card or button read as
+ * "this is the thing that matters" without any other emphasis device.
+ */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
+    --background: oklch(0.964 0.005 135);
+    --foreground: oklch(0.21 0.015 150);
     --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
+    --card-foreground: oklch(0.21 0.015 150);
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    /* Brand hue is the same blue as chart slot 1, so buttons, focus rings and
-       the largest pie slice all read as one system. */
-    --primary: #2a78d6;
+    --popover-foreground: oklch(0.21 0.015 150);
+    /* Brand hue is the same green as chart slot 1, so buttons, focus rings and
+       the primary chart series all read as one system. */
+    --primary: #1b7f4c;
     --primary-foreground: #ffffff;
-    --secondary: oklch(0.97 0.012 258);
-    --secondary-foreground: oklch(0.28 0.05 258);
-    --muted: oklch(0.972 0.008 258);
-    --muted-foreground: oklch(0.52 0.03 258);
-    --accent: oklch(0.955 0.02 258);
-    --accent-foreground: oklch(0.3 0.06 258);
+    --secondary: oklch(0.955 0.014 150);
+    --secondary-foreground: oklch(0.32 0.05 150);
+    --muted: oklch(0.966 0.006 150);
+    --muted-foreground: oklch(0.535 0.022 150);
+    --accent: oklch(0.945 0.03 150);
+    --accent-foreground: oklch(0.3 0.06 150);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.915 0.012 258);
-    --input: oklch(0.915 0.012 258);
-    --ring: #2a78d6;
-    /* Categorical chart slots — validated for CVD separation and the light
-       surface (see dataviz palette). Fixed order; never cycled. */
-    --chart-1: #2a78d6;
-    --chart-2: #1baf7a;
+    --border: oklch(0.912 0.008 150);
+    --input: oklch(0.912 0.008 150);
+    --ring: #1b7f4c;
+    /* Categorical chart slots — brand green leads, then hues chosen for CVD
+       separation on a white surface. Fixed order; never cycled. */
+    --chart-1: #1b7f4c;
+    --chart-2: #2a78d6;
     --chart-3: #eda100;
-    --chart-4: #008300;
-    --chart-5: #4a3aa7;
+    --chart-4: #7c4dcc;
+    --chart-5: #0e9a8d;
     --chart-6: #e34948;
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --radius: 0.875rem;
+    --sidebar: oklch(1 0 0);
+    --sidebar-foreground: oklch(0.21 0.015 150);
+    --sidebar-primary: #1b7f4c;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: oklch(0.945 0.03 150);
+    --sidebar-accent-foreground: oklch(0.3 0.06 150);
+    --sidebar-border: oklch(0.912 0.008 150);
+    --sidebar-ring: #1b7f4c;
 }
 
 .dark {
-    --background: oklch(0.16 0.012 258);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.215 0.015 258);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.215 0.015 258);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: #3987e5;
-    --primary-foreground: #ffffff;
-    --secondary: oklch(0.28 0.025 258);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.28 0.025 258);
-    --muted-foreground: oklch(0.72 0.025 258);
-    --accent: oklch(0.3 0.035 258);
-    --accent-foreground: oklch(0.985 0 0);
+    --background: oklch(0.17 0.008 150);
+    --foreground: oklch(0.97 0.005 150);
+    --card: oklch(0.222 0.012 150);
+    --card-foreground: oklch(0.97 0.005 150);
+    --popover: oklch(0.222 0.012 150);
+    --popover-foreground: oklch(0.97 0.005 150);
+    --primary: #34a76a;
+    --primary-foreground: #06210f;
+    --secondary: oklch(0.29 0.02 150);
+    --secondary-foreground: oklch(0.97 0.005 150);
+    --muted: oklch(0.28 0.016 150);
+    --muted-foreground: oklch(0.72 0.02 150);
+    --accent: oklch(0.32 0.035 150);
+    --accent-foreground: oklch(0.97 0.005 150);
     --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 12%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: #3987e5;
-    /* Same eight hues stepped for the dark surface — a selected set, not a flip. */
-    --chart-1: #3987e5;
-    --chart-2: #199e70;
-    --chart-3: #c98500;
-    --chart-4: #008300;
-    --chart-5: #9085e9;
+    --border: oklch(1 0 0 / 11%);
+    --input: oklch(1 0 0 / 14%);
+    --ring: #34a76a;
+    /* Same six hues stepped for the dark surface — a selected set, not a flip. */
+    --chart-1: #34a76a;
+    --chart-2: #4f97ea;
+    --chart-3: #d99a1f;
+    --chart-4: #a284e8;
+    --chart-5: #2bb8a3;
     --chart-6: #e66767;
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --sidebar: oklch(0.222 0.012 150);
+    --sidebar-foreground: oklch(0.97 0.005 150);
+    --sidebar-primary: #34a76a;
+    --sidebar-primary-foreground: #06210f;
+    --sidebar-accent: oklch(0.32 0.035 150);
+    --sidebar-accent-foreground: oklch(0.97 0.005 150);
+    --sidebar-border: oklch(1 0 0 / 11%);
+    --sidebar-ring: #34a76a;
 }
 
 @layer base {
@@ -131,16 +137,6 @@
     }
   body {
     @apply bg-background text-foreground;
-    /* Vivid corner washes for the glass cards to blur and saturate — a liquid
-       glass surface reads as glass only when there's real color behind it to
-       refract; a barely-tinted page would just look like frosted white.
-       Fixed so it never scrolls with content. */
-    background-image:
-      radial-gradient(70rem 35rem at 8% -12%, color-mix(in oklab, var(--chart-1) 55%, transparent), transparent 65%),
-      radial-gradient(60rem 32rem at 104% 4%, color-mix(in oklab, var(--chart-5) 50%, transparent), transparent 62%),
-      radial-gradient(58rem 34rem at 96% 92%, color-mix(in oklab, var(--chart-3) 40%, transparent), transparent 62%),
-      radial-gradient(52rem 30rem at 50% 116%, color-mix(in oklab, var(--chart-2) 45%, transparent), transparent 65%);
-    background-attachment: fixed;
     }
   html {
     @apply font-sans;

@@ -2,12 +2,10 @@ import { memo, useMemo } from 'react';
 import { Cell, Pie, PieChart } from 'recharts';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
-import { WidgetHeading, widgetCardClass } from '@/components/WidgetHeading';
+import { WidgetHeading } from '@/components/WidgetHeading';
 import { buildIncomeAllocation } from '@/lib/budgetMath';
 import { formatCurrency } from '@/lib/format';
-import { cn } from '@/lib/utils';
 import type { MoneyEntry } from '@/types/budget';
-import { ChartPie } from 'lucide-react';
 
 // Fixed slot order — a slice keeps its hue as categories come and go.
 const SLICE_COLORS = [
@@ -43,11 +41,11 @@ export const AllocationPie = memo(function AllocationPie({ expenses, weeklyIncom
   const total = slices.reduce((sum, s) => sum + s.weeklyAmount, 0);
 
   return (
-    <Card className={cn('h-full', widgetCardClass('blue'))}>
-      <WidgetHeading icon={ChartPie} title="Where your income goes" accent="blue" />
+    <Card className="h-full">
+      <WidgetHeading title="Where your income goes" />
       <CardContent className="flex min-h-0 flex-1 flex-col">
         {slices.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="py-6 text-center text-sm text-muted-foreground">
             Add income and expenses to see the breakdown.
           </p>
         ) : (
@@ -91,7 +89,7 @@ export const AllocationPie = memo(function AllocationPie({ expenses, weeklyIncom
 
             {/* Legend doubles as the value table — three light-mode slots sit under
                 3:1 on the surface, so values must be readable without the color. */}
-            <ul className="w-full min-h-0 min-w-0 flex-1 space-y-1 overflow-y-auto">
+            <ul className="w-full min-w-0 flex-1 space-y-1.5">
               {slices.map((slice, i) => {
                 const share = total > 0 ? (slice.weeklyAmount / total) * 100 : 0;
                 return (

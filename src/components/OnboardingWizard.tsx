@@ -89,16 +89,14 @@ export function OnboardingWizard({
       <div className="mb-6 flex items-center gap-2.5">
         <span
           aria-hidden
-          className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-violet-500 text-white shadow-sm"
+          className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground"
         >
           <PiggyBank className="size-5" />
         </span>
-        <h1 className="bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-2xl font-semibold text-transparent dark:from-blue-400 dark:to-violet-400">
-          Tiny Budget
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Tiny Budget</h1>
       </div>
 
-      <Card className="border-l-4 border-l-blue-500 dark:border-l-blue-400">
+      <Card>
         <CardContent className="flex min-h-64 flex-col gap-4 pt-6">
           {step === 0 && (
             <>
@@ -355,8 +353,8 @@ export function OnboardingWizard({
               <span
                 key={i}
                 className={cn(
-                  'size-1.5 rounded-full transition-colors',
-                  i === step ? 'bg-blue-500 dark:bg-blue-400' : 'bg-muted',
+                  'h-1.5 rounded-full transition-all',
+                  i === step ? 'w-5 bg-primary' : 'w-1.5 bg-border',
                 )}
               />
             ))}

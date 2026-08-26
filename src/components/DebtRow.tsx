@@ -36,13 +36,16 @@ export const DebtRow = memo(function DebtRow({
        spare dollar is going to right now. */
     <div
       className={cn(
-        'py-2',
-        isActive && 'rounded-md border-l-2 border-l-rose-500 bg-rose-500/5 pl-2 dark:border-l-rose-400',
+        'rounded-lg py-3 transition-colors',
+        isActive && 'bg-accent/50 px-3 ring-1 ring-primary/20',
       )}
     >
       <div className="flex flex-wrap items-center gap-2">
         <span
-          className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium tabular-nums"
+          className={cn(
+            'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums',
+            isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+          )}
           title={`Payoff order: #${position}`}
         >
           {position}
@@ -124,15 +127,13 @@ export const DebtRow = memo(function DebtRow({
 
       <div className="mt-2 space-y-1">
         {isActive && (
-          <Badge className="bg-rose-500/15 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300">
+          <Badge className="bg-primary text-primary-foreground">
             <Target className="mr-1 size-3" />
             Attacking this one
           </Badge>
         )}
         {isPaid && (
-          <Badge className="bg-emerald-500/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
-            Paid off!
-          </Badge>
+          <Badge className="bg-accent text-accent-foreground">Paid off!</Badge>
         )}
         {!isPaid && outcome?.status === 'on-track' && outcome.payoffWeek !== null && (
           <p className="text-sm text-muted-foreground">
