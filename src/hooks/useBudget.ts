@@ -14,7 +14,7 @@ import { simulateSnowball } from '@/lib/debtMath';
 import { createEmptyBudget, type Budget, type Debt, type ExpenseCategory, type Frequency, type Goal, type Income, type MoneyEntry } from '@/types/budget';
 
 const STORAGE_KEY = 'tiny-budget:v1';
-const CURRENT_VERSION = 5;
+const CURRENT_VERSION = 6;
 
 interface StoredBudget {
   version: typeof CURRENT_VERSION;
@@ -107,10 +107,38 @@ function migrateFromV4(value: unknown): Budget | null {
   };
 }
 
+/**
+ * v5 debts carried an APR and a lender type. Both are gone: a minimum payment
+ * already covers its own interest, so the balance is simply paid down. The
+ * fields are dropped rather than kept as dead weight in storage.
+ */
+function migrateFromV5(value: unknown): Budget | null {
+  if (!value || typeof value !== 'object') return null;
+  const b = value as Partial<Budget> & { debts?: unknown };
+  if (!b.income || !Array.isArray(b.expenses) || !Array.isArray(b.goals)) return null;
+  const debts = Array.isArray(b.debts)
+    ? (b.debts as Debt[]).map(({ id, name, balance, minimumPayment }) => ({
+        id,
+        name,
+        balance: Math.max(balance ?? 0, 0),
+        minimumPayment: Math.max(minimumPayment ?? 0, 0),
+      }))
+    : [];
+  return {
+    income: b.income as Income,
+    expenses: b.expenses as ExpenseCategory[],
+    goals: withDefaultPriority(b.goals),
+    debts,
+    currentBalance: Math.max(b.currentBalance ?? 0, 0),
+    weeklyGoalContribution: Math.max(b.weeklyGoalContribution ?? 0, 0),
+  };
+}
+
 function readBudget(value: unknown): Budget {
   if (!value || typeof value !== 'object') return createEmptyBudget();
   const s = value as { version?: unknown; budget?: unknown };
   if (s.version === CURRENT_VERSION && isValidBudget(s.budget)) return s.budget;
+  if (s.version === 5) return migrateFromV5(s.budget) ?? createEmptyBudget();
   if (s.version === 4) return migrateFromV4(s.budget) ?? createEmptyBudget();
   if (s.version === 3 || s.version === 2) return migrateFromV2OrV3(s.budget) ?? createEmptyBudget();
   if (s.version === 1) return migrateFromV1(s.budget) ?? createEmptyBudget();

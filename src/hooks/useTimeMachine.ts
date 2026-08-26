@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { projectGoalsAt, totalGoalAllocationAtWeeks, type GoalAtDate } from '@/lib/budgetMath';
+import { debtSpendAtWeek, type SnowballResult } from '@/lib/debtMath';
 import {
   addMonths,
   parseLocalDate,
@@ -9,32 +10,67 @@ import {
 } from '@/lib/dates';
 import type { Goal } from '@/types/budget';
 
+interface TimeMachineInput {
+  goals: Goal[];
+  /** Total income minus expenses — the whole weekly pool, before any split. */
+  weeklyLeftover: number;
+  /** The slice of that pool going to goals. */
+  goalContribution: number;
+  /** Cash on hand today, before the snowball's week-0 lump sum. */
+  currentBalance: number;
+  hasDebts: boolean;
+  snowball: SnowballResult;
+  /** Cash left after debts took their share — the goals' starting balance. */
+  goalFundingBalance: number;
+}
+
 /**
- * The shared "what if I wait until X" horizon. Lives above both the Time
- * Machine and the Goals widget so picking a date updates them together.
+ * The shared "what if I wait until X" horizon.
+ *
+ * While in debt this has to model the whole picture, not just the goals
+ * stream: money paid to lenders is gone, but it stops leaving once the
+ * snowball finishes, at which point the weekly leftover starts piling up as
+ * free cash. Projecting only the goal contribution would report $0 forever,
+ * which is wrong the moment the payoff date falls inside the horizon.
  */
-export function useTimeMachine(goals: Goal[], weeklyLeftover: number, currentBalance: number) {
+export function useTimeMachine({
+  goals,
+  weeklyLeftover,
+  goalContribution,
+  currentBalance,
+  hasDebts,
+  snowball,
+  goalFundingBalance,
+}: TimeMachineInput) {
   const today = useMemo(() => startOfToday(), []);
   const [dateValue, setDateValue] = useState(() => toDateInputValue(addMonths(startOfToday(), 3)));
 
   const targetDate = useMemo(() => parseLocalDate(dateValue), [dateValue]);
   // Travelling backwards has no meaning here — we have no history, only a rate.
   const weeks = targetDate ? Math.max(weeksBetween(today, targetDate), 0) : 0;
-  // Starts from what you actually have today, not from zero.
-  const balance = currentBalance + weeklyLeftover * weeks;
 
-  // Of that balance, whatever the waterfall has committed to goals by then —
-  // the starting balance itself is spent first (instantly), so this is only
-  // "free" once every goal is fully funded.
+  // Everything earned by the horizon, before anything is taken out of it.
+  const inflow = currentBalance + Math.max(weeklyLeftover, 0) * weeks;
+
+  // Cash handed to lenders by then. Plateaus at the payoff date.
+  const debtSpend = hasDebts ? debtSpendAtWeek(snowball, weeks) : 0;
+
   const goalAllocation = useMemo(
-    () => totalGoalAllocationAtWeeks(goals, weeklyLeftover, weeks, currentBalance),
-    [goals, weeklyLeftover, weeks, currentBalance],
+    () => totalGoalAllocationAtWeeks(goals, goalContribution, weeks, goalFundingBalance),
+    [goals, goalContribution, weeks, goalFundingBalance],
   );
+
+  const balance = inflow - debtSpend;
   const freeBalance = balance - goalAllocation;
 
+  // When the debts clear inside the horizon, say so — it's the moment the
+  // projection stops being flat, and the reason the number finally moves.
+  const debtFreeWeek = hasDebts ? snowball.debtFreeWeek : null;
+  const debtsClearedByHorizon = debtFreeWeek !== null && weeks >= debtFreeWeek;
+
   const projections = useMemo(
-    () => projectGoalsAt(goals, weeklyLeftover, weeks, currentBalance),
-    [goals, weeklyLeftover, weeks, currentBalance],
+    () => projectGoalsAt(goals, goalContribution, weeks, goalFundingBalance),
+    [goals, goalContribution, weeks, goalFundingBalance],
   );
 
   // Keyed for the Goals widget, which is what actually displays these now.
@@ -52,6 +88,10 @@ export function useTimeMachine(goals: Goal[], weeklyLeftover: number, currentBal
     balance,
     goalAllocation,
     freeBalance,
+    debtSpend,
+    debtFreeWeek,
+    debtsClearedByHorizon,
+    hasDebts,
     projectionById,
   };
 }

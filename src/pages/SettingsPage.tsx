@@ -55,9 +55,14 @@ export function SettingsPage({ onNewBudget, onRerunSetup }: SettingsPageProps) {
             </p>
             <p>
               <span className="font-medium text-foreground">Debts use the snowball.</span> They're
-              ordered by balance, smallest first — deliberately ignoring interest rate. You pay
-              every minimum, and everything spare goes at the smallest. When it clears, its
-              payment rolls into the next one.
+              ordered by balance, smallest first. You pay every minimum, and everything spare
+              goes at the smallest. When it clears, its payment rolls into the next one — so the
+              amount attacking your debt grows each time one disappears.
+            </p>
+            <p>
+              <span className="font-medium text-foreground">Interest isn't asked for.</span> A
+              minimum payment already covers its own interest, so each balance is simply paid
+              down. That keeps the plan honest without making you hunt for a rate.
             </p>
             <p>
               <span className="font-medium text-foreground">Goals use priority.</span> The lowest

@@ -1,9 +1,10 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { WidgetHeading } from '@/components/WidgetHeading';
 import { formatCurrency } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import type { Frequency, Income } from '@/types/budget';
 
 interface IncomeCardProps {
@@ -12,13 +13,16 @@ interface IncomeCardProps {
   currentBalance: number;
   onCurrentBalanceChange: (amount: number) => void;
   weeklyIncome: number;
+  weeklyExpenses: number;
+  weeklyLeftover: number;
   hasDebts: boolean;
+  debtMinimums: number;
 }
 
 /**
- * The two figures everything else is derived from. They live together on the
- * Budget page rather than the dashboard, because they're set once and revisited
- * rarely — the dashboard shows what they produce, not the inputs themselves.
+ * Inputs and the figures they produce, in one strip. They were separate cards,
+ * which read fine but cost two rows of vertical space before the expense list
+ * even started — and the list is the reason anyone opens this page.
  */
 export function IncomeCard({
   income,
@@ -26,12 +30,16 @@ export function IncomeCard({
   currentBalance,
   onCurrentBalanceChange,
   weeklyIncome,
+  weeklyExpenses,
+  weeklyLeftover,
   hasDebts,
+  debtMinimums,
 }: IncomeCardProps) {
+  const inTheRed = weeklyLeftover <= 0;
+
   return (
     <Card>
-      <WidgetHeading title="Income & cash" description="What comes in, and what you have today." />
-      <CardContent className="flex flex-wrap gap-x-10 gap-y-5">
+      <CardContent className="flex flex-wrap items-end gap-x-8 gap-y-5">
         <div>
           <Label htmlFor="income-amount" className="text-xs text-muted-foreground">
             Take-home income
@@ -58,9 +66,6 @@ export function IncomeCard({
               <ToggleGroupItem value="monthly">Monthly</ToggleGroupItem>
             </ToggleGroup>
           </div>
-          <p className="mt-1.5 text-xs tabular-nums text-muted-foreground">
-            {formatCurrency(weeklyIncome)}/wk
-          </p>
         </div>
 
         <div>
@@ -76,10 +81,46 @@ export function IncomeCard({
             onChange={(e) => onCurrentBalanceChange(e.target.valueAsNumber || 0)}
             className="mt-1.5 w-32"
           />
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            {hasDebts ? 'Goes at your debts first' : 'Funds your goals'}
+        </div>
+
+        <Separator orientation="vertical" className="hidden h-12 self-end sm:block" />
+
+        <div>
+          <p className="text-xs text-muted-foreground">Income</p>
+          <p className="mt-1 text-lg font-semibold tabular-nums">
+            {formatCurrency(weeklyIncome)}
+            <span className="text-sm font-normal text-muted-foreground">/wk</span>
           </p>
         </div>
+
+        <div>
+          <p className="text-xs text-muted-foreground">Expenses</p>
+          <p className="mt-1 text-lg font-semibold tabular-nums">
+            {formatCurrency(weeklyExpenses)}
+            <span className="text-sm font-normal text-muted-foreground">/wk</span>
+          </p>
+        </div>
+
+        {/* The figure the whole page exists to move. */}
+        <div>
+          <p className="text-xs text-muted-foreground">Left each week</p>
+          <p
+            className={cn(
+              'mt-1 text-2xl font-semibold tracking-tight tabular-nums',
+              inTheRed ? 'text-destructive' : 'text-primary',
+            )}
+          >
+            {formatCurrency(weeklyLeftover)}
+          </p>
+        </div>
+
+        {hasDebts && debtMinimums > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {formatCurrency(debtMinimums)}/wk of this is
+            <br />
+            committed to debt minimums
+          </p>
+        )}
       </CardContent>
     </Card>
   );

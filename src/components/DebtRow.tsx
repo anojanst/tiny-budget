@@ -3,10 +3,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import type { Debt, LenderType } from '@/types/budget';
+import type { Debt } from '@/types/budget';
 import type { DebtOutcome } from '@/lib/debtMath';
-import { formatCurrency, formatWeeksRemaining } from '@/lib/format';
+import { formatWeeksRemaining } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { X, Target } from 'lucide-react';
 
@@ -21,6 +20,11 @@ interface DebtRowProps {
   onRemove: (id: string) => void;
 }
 
+/**
+ * A self-contained tile rather than a wide row, so two fit side by side on a
+ * desktop column. Only two numbers are asked for — balance and minimum — which
+ * is the whole model.
+ */
 export const DebtRow = memo(function DebtRow({
   debt,
   position,
@@ -32,15 +36,13 @@ export const DebtRow = memo(function DebtRow({
   const isPaid = debt.balance <= 0;
 
   return (
-    /* The active debt gets a tinted rail: at a glance, this is the one every
-       spare dollar is going to right now. */
     <div
       className={cn(
-        'rounded-lg py-3 transition-colors',
-        isActive && 'bg-accent/50 px-3 ring-1 ring-primary/20',
+        'flex h-full flex-col gap-3 rounded-xl border p-4 transition-colors',
+        isActive ? 'border-primary/40 bg-accent/40' : 'border-border bg-card',
       )}
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2">
         <span
           className={cn(
             'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums',
@@ -54,17 +56,7 @@ export const DebtRow = memo(function DebtRow({
           value={debt.name}
           onChange={(e) => onUpdate(debt.id, { name: e.target.value })}
           placeholder="Debt name"
-          className="min-w-28 flex-1"
-        />
-        <Input
-          type="number"
-          min="0"
-          step="0.01"
-          value={debt.balance}
-          onChange={(e) => onUpdate(debt.id, { balance: Math.max(e.target.valueAsNumber || 0, 0) })}
-          placeholder="Balance"
-          className="w-28"
-          aria-label={`${debt.name || 'Debt'} balance`}
+          className="min-w-0 flex-1"
         />
         <Button
           variant="ghost"
@@ -77,8 +69,20 @@ export const DebtRow = memo(function DebtRow({
         </Button>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <div className="relative w-28 shrink-0" title="Minimum payment per week">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="flex flex-col gap-1">
+          <span className="text-[0.7rem] text-muted-foreground">Balance owed</span>
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            value={debt.balance}
+            onChange={(e) => onUpdate(debt.id, { balance: Math.max(e.target.valueAsNumber || 0, 0) })}
+            aria-label={`${debt.name || 'Debt'} balance`}
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[0.7rem] text-muted-foreground">Minimum / week</span>
           <Input
             type="number"
             min="0"
@@ -87,78 +91,32 @@ export const DebtRow = memo(function DebtRow({
             onChange={(e) =>
               onUpdate(debt.id, { minimumPayment: Math.max(e.target.valueAsNumber || 0, 0) })
             }
-            placeholder="Min/wk"
             aria-label={`${debt.name || 'Debt'} minimum payment per week`}
-            className="pr-9"
           />
-          <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-muted-foreground">
-            /wk
-          </span>
-        </div>
-        <div className="relative w-24 shrink-0" title="Annual interest rate">
-          <Input
-            type="number"
-            min="0"
-            step="0.1"
-            value={Number((debt.apr * 100).toFixed(2))}
-            onChange={(e) =>
-              onUpdate(debt.id, { apr: Math.max(e.target.valueAsNumber || 0, 0) / 100 })
-            }
-            placeholder="APR"
-            aria-label={`${debt.name || 'Debt'} annual interest rate`}
-            className="pr-7"
-          />
-          <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-muted-foreground">
-            %
-          </span>
-        </div>
-        <ToggleGroup
-          value={[debt.lenderType]}
-          onValueChange={(value) => {
-            if (value[0]) onUpdate(debt.id, { lenderType: value[0] as LenderType });
-          }}
-          variant="outline"
-          size="sm"
-        >
-          <ToggleGroupItem value="institutional">Lender</ToggleGroupItem>
-          <ToggleGroupItem value="personal">Family</ToggleGroupItem>
-        </ToggleGroup>
+        </label>
       </div>
 
-      <div className="mt-2 space-y-1">
+      {/* Status pinned to the bottom so tiles in a row line up even when one
+          of them is carrying a wrapped warning. */}
+      <div className="mt-auto space-y-1.5 pt-1">
         {isActive && (
           <Badge className="bg-primary text-primary-foreground">
             <Target className="mr-1 size-3" />
             Attacking this one
           </Badge>
         )}
-        {isPaid && (
-          <Badge className="bg-accent text-accent-foreground">Paid off!</Badge>
-        )}
-        {!isPaid && outcome?.status === 'on-track' && outcome.payoffWeek !== null && (
-          <p className="text-sm text-muted-foreground">
-            Clear in {formatWeeksRemaining(outcome.payoffWeek)}
-            {outcome.interestPaid > 0.5 && (
-              <span> · {formatCurrency(outcome.interestPaid)} interest</span>
-            )}
-          </p>
-        )}
-        {!isPaid && outcome?.status === 'paid' && outcome.payoffWeek !== null && (
+        {isPaid && <Badge className="bg-accent text-accent-foreground">Paid off!</Badge>}
+        {!isPaid && outcome?.payoffWeek != null && outcome.status !== 'unreachable' && (
           <p className="text-sm text-muted-foreground">
             {outcome.payoffWeek === 0
               ? 'Cleared instantly by your cash on hand'
               : `Clear in ${formatWeeksRemaining(outcome.payoffWeek)}`}
-            {outcome.interestPaid > 0.5 && (
-              <span> · {formatCurrency(outcome.interestPaid)} interest</span>
-            )}
           </p>
         )}
         {outcome?.status === 'unreachable' && (
           <Alert variant="destructive">
             <AlertDescription>
-              {debt.minimumPayment > 0
-                ? "This payment doesn't cover the interest — the balance grows faster than you pay it. Raise the payment or the rate has to come down."
-                : 'No payment set, so this never gets paid off. Set a weekly minimum.'}
+              Nothing is reaching this debt. Set a weekly minimum, or free up money each week.
             </AlertDescription>
           </Alert>
         )}

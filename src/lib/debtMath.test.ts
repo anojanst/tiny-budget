@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   activeDebtId,
   buildDebtPayoffSeries,
+  debtSpendAtWeek,
   diversionImpact,
   simulateSnowball,
   snowballOrder,
@@ -11,8 +12,6 @@ import type { Debt } from '@/types/budget';
 const debt = (over: Partial<Debt> & { id: string; balance: number }): Debt => ({
   name: over.id,
   minimumPayment: 0,
-  apr: 0,
-  lenderType: 'institutional',
   ...over,
 });
 
@@ -22,12 +21,12 @@ describe('snowballOrder', () => {
     expect(snowballOrder(debts).map((d) => d.id)).toEqual(['small', 'big']);
   });
 
-  it('ignores APR — a high-rate debt does not jump the queue', () => {
+  it('ignores the size of the minimum payment — only the balance decides', () => {
     const debts = [
-      debt({ id: 'cheap', balance: 100, apr: 0 }),
-      debt({ id: 'expensive', balance: 900, apr: 0.29 }),
+      debt({ id: 'small-balance', balance: 100, minimumPayment: 5 }),
+      debt({ id: 'big-payment', balance: 900, minimumPayment: 400 }),
     ];
-    expect(snowballOrder(debts).map((d) => d.id)).toEqual(['cheap', 'expensive']);
+    expect(snowballOrder(debts).map((d) => d.id)).toEqual(['small-balance', 'big-payment']);
   });
 
   it('breaks ties by input order rather than splitting between them', () => {
@@ -36,13 +35,12 @@ describe('snowballOrder', () => {
   });
 });
 
-describe('simulateSnowball — interest-free', () => {
+describe('simulateSnowball', () => {
   it('pays a single debt off at the expected week', () => {
     const debts = [debt({ id: 'a', balance: 1000, minimumPayment: 100 })];
     const result = simulateSnowball(debts, 0);
     expect(result.outcomeById.get('a')!.payoffWeek).toBe(10);
     expect(result.debtFreeWeek).toBe(10);
-    expect(result.totalInterest).toBeCloseTo(0);
   });
 
   it('attacks only the smallest debt while paying minimums on the rest', () => {
@@ -51,7 +49,7 @@ describe('simulateSnowball — interest-free', () => {
       debt({ id: 'big', balance: 2000, minimumPayment: 20 }),
     ];
     // Budget is 10 + 20 + 70 extra = 100/wk. Small takes its own 10 plus the
-    // 70 attack = 80/wk, so it clears in ceil(200/80) = 3 weeks.
+    // 70 attack = 80/wk, so it clears in 3 weeks.
     const result = simulateSnowball(debts, 70);
     expect(result.outcomeById.get('small')!.payoffWeek).toBe(3);
     // Big took its 20/wk minimum for 3 weeks, plus the 40 left over in week 3
@@ -65,62 +63,38 @@ describe('simulateSnowball — interest-free', () => {
       debt({ id: 'big', balance: 900, minimumPayment: 50 }),
     ];
     // 100/wk total, no extra. Small clears at week 2. From then the whole
-    // 100/wk hits big, which by then owes 900 - 100 = 800 -> 8 more weeks.
+    // 100/wk hits big, which by then owes 800 -> 8 more weeks.
     const result = simulateSnowball(debts, 0);
     expect(result.outcomeById.get('small')!.payoffWeek).toBe(2);
     expect(result.outcomeById.get('big')!.payoffWeek).toBe(10);
     expect(result.debtFreeWeek).toBe(10);
   });
 
-  it('reconciles: total paid equals principal plus interest', () => {
+  it('total paid is exactly what was owed — nothing is added on top', () => {
     const debts = [
-      debt({ id: 'a', balance: 1200, minimumPayment: 25, apr: 0.18 }),
-      debt({ id: 'b', balance: 4000, minimumPayment: 60, apr: 0.099 }),
+      debt({ id: 'a', balance: 1200, minimumPayment: 25 }),
+      debt({ id: 'b', balance: 4000, minimumPayment: 60 }),
     ];
-    const result = simulateSnowball(debts, 150);
-    expect(result.totalPaid).toBeCloseTo(1200 + 4000 + result.totalInterest, 6);
-  });
-});
-
-describe('simulateSnowball — interest', () => {
-  it('accrues interest so payoff takes longer than the interest-free case', () => {
-    const free = simulateSnowball([debt({ id: 'a', balance: 1000, minimumPayment: 100 })], 0);
-    const charged = simulateSnowball(
-      [debt({ id: 'a', balance: 1000, minimumPayment: 100, apr: 0.24 })],
-      0,
-    );
-    expect(charged.outcomeById.get('a')!.payoffWeek!).toBeGreaterThan(
-      free.outcomeById.get('a')!.payoffWeek!,
-    );
-    expect(charged.totalInterest).toBeGreaterThan(0);
+    expect(simulateSnowball(debts, 150).totalPaid).toBeCloseTo(5200);
   });
 
-  it('charges no interest on a 0% family loan', () => {
-    const debts = [debt({ id: 'mum', balance: 800, minimumPayment: 40, lenderType: 'personal' })];
-    const result = simulateSnowball(debts, 0);
-    expect(result.outcomeById.get('mum')!.interestPaid).toBeCloseTo(0);
-    expect(result.outcomeById.get('mum')!.payoffWeek).toBe(20);
-  });
-
-  it('marks a debt unreachable when its minimum cannot cover its own interest', () => {
-    // 1% weekly interest on 10000 is 100/wk; a 5/wk minimum never catches it.
-    const debts = [debt({ id: 'trap', balance: 10000, minimumPayment: 5, apr: 0.52 })];
-    const result = simulateSnowball(debts, 0);
-    expect(result.outcomeById.get('trap')!.status).toBe('unreachable');
-    expect(result.outcomeById.get('trap')!.payoffWeek).toBeNull();
-    expect(result.debtFreeWeek).toBeNull();
-  });
-
-  it('a queued debt with no minimum still grows while it waits its turn', () => {
+  it('leaves a queued debt untouched until its turn comes', () => {
     const debts = [
       debt({ id: 'target', balance: 500, minimumPayment: 50 }),
-      debt({ id: 'waiting', balance: 1000, minimumPayment: 0, apr: 0.26 }),
+      debt({ id: 'waiting', balance: 1000, minimumPayment: 0 }),
     ];
     const result = simulateSnowball(debts, 0);
-    // By the time the first debt closes, the untouched one owes more than it started with.
     const payoff = result.outcomeById.get('target')!.payoffWeek!;
-    expect(result.balanceHistory.get('waiting')![payoff]).toBeGreaterThan(1000);
+    // No minimum and not yet the target, so the balance is exactly as entered.
+    expect(result.balanceHistory.get('waiting')![payoff]).toBeCloseTo(1000);
     expect(result.outcomeById.get('waiting')!.payoffWeek).toBeGreaterThan(payoff);
+  });
+
+  it('handles a debt with no minimum payment at all', () => {
+    const debts = [debt({ id: 'family', balance: 800, minimumPayment: 0 })];
+    // Nothing contractual, but the whole 40/wk extra still goes at it.
+    const result = simulateSnowball(debts, 40);
+    expect(result.outcomeById.get('family')!.payoffWeek).toBe(20);
   });
 });
 
@@ -130,7 +104,6 @@ describe('simulateSnowball — current balance lump sum', () => {
     const result = simulateSnowball(debts, 0, 500);
     expect(result.outcomeById.get('a')!.payoffWeek).toBe(0);
     expect(result.debtFreeWeek).toBe(0);
-    expect(result.totalInterest).toBeCloseTo(0);
   });
 
   it('cascades the lump sum in payoff order rather than splitting it', () => {
@@ -160,10 +133,10 @@ describe('simulateSnowball — current balance lump sum', () => {
 describe('simulateSnowball — overflow and empty cases', () => {
   it('spills a windfall week past the target onto the next debt', () => {
     const debts = [
-      debt({ id: 'small', balance: 100, minimumPayment: 0 }),
-      debt({ id: 'next', balance: 1000, minimumPayment: 0 }),
+      debt({ id: 'small', balance: 100 }),
+      debt({ id: 'next', balance: 1000 }),
     ];
-    // 500/wk against a 100 debt: it clears and 400 lands on the next one, same week.
+    // 500/wk against a 100 debt: it clears and 400 lands on the next one.
     const result = simulateSnowball(debts, 500);
     expect(result.outcomeById.get('small')!.payoffWeek).toBe(1);
     expect(result.balanceHistory.get('next')![1]).toBeCloseTo(600);
@@ -176,10 +149,19 @@ describe('simulateSnowball — overflow and empty cases', () => {
     expect(result.lumpSumRemainder).toBeCloseTo(500);
   });
 
-  it('never progresses without a budget, but does not crash', () => {
+  it('is unreachable only when no money reaches the debt at all', () => {
     const debts = [debt({ id: 'a', balance: 1000, minimumPayment: 0 })];
     const result = simulateSnowball(debts, 0, 0);
     expect(result.outcomeById.get('a')!.status).toBe('unreachable');
+    expect(result.outcomeById.get('a')!.payoffWeek).toBeNull();
+    expect(result.debtFreeWeek).toBeNull();
+  });
+
+  it('always terminates for any positive payment, however small', () => {
+    const debts = [debt({ id: 'a', balance: 1000, minimumPayment: 1 })];
+    const result = simulateSnowball(debts, 0);
+    expect(result.outcomeById.get('a')!.status).toBe('paid');
+    expect(result.outcomeById.get('a')!.payoffWeek).toBe(1000);
   });
 
   it('treats an already-cleared debt as paid at week 0', () => {
@@ -187,6 +169,43 @@ describe('simulateSnowball — overflow and empty cases', () => {
     const result = simulateSnowball(debts, 50);
     expect(result.outcomeById.get('done')!.status).toBe('paid');
     expect(result.outcomeById.get('done')!.payoffWeek).toBe(0);
+  });
+});
+
+describe('debtSpendAtWeek', () => {
+  it('stops growing once the debts are paid off', () => {
+    const debts = [debt({ id: 'a', balance: 1000, minimumPayment: 100 })];
+    const result = simulateSnowball(debts, 0);
+    // Cleared at week 10; a year out must report the same total, not ten
+    // times it — otherwise a projection keeps draining money that is no
+    // longer owed to anyone.
+    expect(debtSpendAtWeek(result, 10)).toBeCloseTo(1000);
+    expect(debtSpendAtWeek(result, 52)).toBeCloseTo(1000);
+  });
+
+  it('never counts more than was actually handed over in a final part-week', () => {
+    // 300/wk against a 1000 debt: weeks 1-3 pay 900, week 4 pays only 100.
+    const debts = [debt({ id: 'a', balance: 1000, minimumPayment: 300 })];
+    const result = simulateSnowball(debts, 0);
+    expect(debtSpendAtWeek(result, 4)).toBeCloseTo(1000);
+  });
+
+  it('counts the week-0 lump sum immediately', () => {
+    const debts = [debt({ id: 'a', balance: 1000, minimumPayment: 50 })];
+    const result = simulateSnowball(debts, 0, 400);
+    expect(debtSpendAtWeek(result, 0)).toBeCloseTo(400);
+  });
+
+  it('reconciles a full projection: inflow minus debt spend leaves the rest free', () => {
+    const debts = [debt({ id: 'a', balance: 2000, minimumPayment: 100 })];
+    const weeklyLeftover = 500;
+    const result = simulateSnowball(debts, weeklyLeftover - 100, 0);
+    const weeks = 52;
+    const free = weeklyLeftover * weeks - debtSpendAtWeek(result, weeks);
+    // Debt clears at week 4; the remaining 48 weeks of leftover are free.
+    expect(result.debtFreeWeek).toBe(4);
+    expect(free).toBeCloseTo(500 * 52 - 2000);
+    expect(free).toBeGreaterThan(0);
   });
 });
 
@@ -241,18 +260,15 @@ describe('buildDebtPayoffSeries', () => {
 });
 
 describe('diversionImpact', () => {
-  it('quantifies the delay and extra interest from funding goals', () => {
-    const debts = [debt({ id: 'a', balance: 2000, minimumPayment: 25, apr: 0.18 })];
+  it('quantifies the delay from funding goals instead of debt', () => {
+    const debts = [debt({ id: 'a', balance: 2000, minimumPayment: 25 })];
     const impact = diversionImpact(debts, 200, 100);
     expect(impact.weeksDelayed!).toBeGreaterThan(0);
-    expect(impact.extraInterest).toBeGreaterThan(0);
     expect(impact.debtFreeWeekWith!).toBeGreaterThan(impact.debtFreeWeekWithout!);
   });
 
   it('costs nothing when nothing is diverted', () => {
-    const debts = [debt({ id: 'a', balance: 2000, minimumPayment: 25, apr: 0.18 })];
-    const impact = diversionImpact(debts, 200, 0);
-    expect(impact.weeksDelayed).toBe(0);
-    expect(impact.extraInterest).toBeCloseTo(0);
+    const debts = [debt({ id: 'a', balance: 2000, minimumPayment: 25 })];
+    expect(diversionImpact(debts, 200, 0).weeksDelayed).toBe(0);
   });
 });

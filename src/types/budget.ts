@@ -25,20 +25,17 @@ export interface Goal {
 }
 
 /**
- * Institutional lenders charge interest and hold you to a minimum; money from
- * friends and family usually does neither, so both fields tolerate zero.
+ * Two numbers, deliberately. Interest isn't modelled: a real minimum payment
+ * already covers the interest by construction, so treating the balance as a
+ * fixed amount to pay down keeps the projection honest without asking anyone
+ * to hunt down an APR they probably can't find.
  */
-export type LenderType = 'institutional' | 'personal';
-
 export interface Debt {
   id: string;
   name: string;
   balance: number;
   /** Can be 0 — typical for an informal loan with no agreed schedule. */
   minimumPayment: number;
-  /** Annual rate as a decimal (0.199 = 19.9%). 0 for interest-free. */
-  apr: number;
-  lenderType: LenderType;
 }
 
 export interface Budget {

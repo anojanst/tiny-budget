@@ -54,8 +54,6 @@ export function OnboardingWizard({
   const [debtName, setDebtName] = useState('');
   const [debtBalance, setDebtBalance] = useState('');
   const [debtMinimum, setDebtMinimum] = useState('');
-  const [debtApr, setDebtApr] = useState('');
-  const [debtLender, setDebtLender] = useState<Debt['lenderType']>('institutional');
 
   // Answering "yes, debt free" makes the debt step pointless — skip straight out.
   const isLastStep = step === STEP_COUNT - 1 || (step === 3 && debtFree === true);
@@ -75,13 +73,10 @@ export function OnboardingWizard({
       name: debtName.trim(),
       balance,
       minimumPayment: Math.max(Number(debtMinimum) || 0, 0),
-      apr: Math.max(Number(debtApr) || 0, 0) / 100,
-      lenderType: debtLender,
     });
     setDebtName('');
     setDebtBalance('');
     setDebtMinimum('');
-    setDebtApr('');
   };
 
   return (
@@ -264,8 +259,8 @@ export function OnboardingWizard({
               <div>
                 <h2 className="text-lg font-semibold">List your debts</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Balance and weekly minimum for each. Family loans usually have no interest
-                  and no set minimum — leave those at zero.
+                  What you owe, and the least you must pay each week. If there's no set
+                  minimum — money from family, say — leave it at zero.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -296,27 +291,6 @@ export function OnboardingWizard({
                   className="w-24"
                   onKeyDown={(e) => e.key === 'Enter' && handleAddDebt()}
                 />
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={debtApr}
-                  onChange={(e) => setDebtApr(e.target.value)}
-                  placeholder="APR %"
-                  className="w-24"
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddDebt()}
-                />
-                <ToggleGroup
-                  value={[debtLender]}
-                  onValueChange={(value) => {
-                    if (value[0]) setDebtLender(value[0] as Debt['lenderType']);
-                  }}
-                  variant="outline"
-                  size="sm"
-                >
-                  <ToggleGroupItem value="institutional">Lender</ToggleGroupItem>
-                  <ToggleGroupItem value="personal">Family</ToggleGroupItem>
-                </ToggleGroup>
                 <Button size="sm" onClick={handleAddDebt}>
                   Add
                 </Button>

@@ -86,8 +86,7 @@ export const GoalDiversionDial = memo(function GoalDiversionDial({
                 <>
                   Saving {formatCurrency(goalContribution)}/wk pushes your debt-free date out{' '}
                   {Math.round(impact.weeksDelayed)}{' '}
-                  {Math.round(impact.weeksDelayed) === 1 ? 'week' : 'weeks'} and costs{' '}
-                  {formatCurrency(impact.extraInterest)} more in interest.
+                  {Math.round(impact.weeksDelayed) === 1 ? 'week' : 'weeks'}.
                 </>
               ) : (
                 <>

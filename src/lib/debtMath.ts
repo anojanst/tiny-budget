@@ -5,17 +5,18 @@ import type { Debt } from '@/types/budget';
  * minimum, and throw every spare dollar at the single smallest one. When it
  * closes, its minimum joins the attack on the next — the payment "snowballs".
  *
- * Unlike budgetMath's goal waterfall, this is simulated week by week rather
- * than solved in closed form. Interest compounds, so a balance doesn't fall
- * linearly and there's no exact algebraic breakpoint to jump to. A per-regime
- * amortization solve does exist, but it needs integer-week root-finding and a
- * negative-amortization guard on every debt (a later debt can close on its own
- * minimums, which is easy to miss), for no gain a browser can measure. Left
- * iterative on purpose.
+ * Interest is not modelled. A real minimum payment already covers its own
+ * interest, so treating each balance as a fixed amount to pay down is both
+ * close enough and far easier to trust than a projection built on an APR the
+ * user had to guess. It also means a balance can only ever fall, so there's no
+ * negative-amortization case to defend against.
+ *
+ * Still simulated week by week rather than solved in closed form: the payment
+ * rolling from one debt to the next changes the rate at each closure, and a
+ * loop makes that obvious where algebra would hide it.
  */
 
-const WEEKS_PER_YEAR = 52;
-/** ~57 years. Past this a debt is not being paid off in any useful sense. */
+/** Long enough to expose a hopeless plan, short enough to always terminate. */
 const MAX_WEEKS = 3000;
 const EPSILON = 1e-6;
 
@@ -26,7 +27,6 @@ export interface DebtOutcome {
   status: DebtStatus;
   /** null when unreachable. */
   payoffWeek: number | null;
-  interestPaid: number;
   startingBalance: number;
 }
 
@@ -36,17 +36,35 @@ export interface SnowballResult {
   outcomeById: Map<string, DebtOutcome>;
   /** null if anything is unreachable. */
   debtFreeWeek: number | null;
-  totalInterest: number;
   totalPaid: number;
   /** Cash left over after the lump sum cleared every debt — spills to goals. */
   lumpSumRemainder: number;
   /** Per-week remaining balance by debt id, index 0 = today (after the lump sum). */
   balanceHistory: Map<string, number[]>;
+  /**
+   * Cumulative cash actually handed to lenders by week, index 0 = the week-0
+   * lump sum. Payments stop when the debts do, so this plateaus rather than
+   * growing forever — which is what lets a projection show money becoming free
+   * again once the snowball finishes.
+   */
+  paidHistory: number[];
+}
+
+/** Cumulative cash paid to debts by `weeks`, interpolated between whole weeks. */
+export function debtSpendAtWeek(result: SnowballResult, weeks: number): number {
+  const history = result.paidHistory;
+  if (history.length === 0) return 0;
+  if (weeks <= 0) return history[0];
+  const last = history.length - 1;
+  if (weeks >= last) return history[last];
+  const whole = Math.floor(weeks);
+  const fraction = weeks - whole;
+  return history[whole] + (history[whole + 1] - history[whole]) * fraction;
 }
 
 /**
- * Payoff order, fixed once from starting balances — Ramsey deliberately ignores
- * APR here; the point is a quick first win, not optimal interest.
+ * Payoff order, fixed once from starting balances. The point is a quick first
+ * win — the smallest debt disappearing soonest — not optimal interest.
  *
  * Note the asymmetry with goals: tied goals *split* the funding evenly, tied
  * debts do not. The first-listed of an equal pair takes the whole attack and
@@ -82,11 +100,9 @@ export function simulateSnowball(
   const outcomeById = new Map<string, DebtOutcome>();
   const balanceHistory = new Map<string, number[]>();
   const remaining = new Map<string, number>();
-  const interestById = new Map<string, number>();
 
   for (const debt of order) {
     remaining.set(debt.id, Math.max(debt.balance, 0));
-    interestById.set(debt.id, 0);
   }
 
   // Debts already at zero never enter the simulation.
@@ -96,22 +112,21 @@ export function simulateSnowball(
         debtId: debt.id,
         status: 'paid',
         payoffWeek: 0,
-        interestPaid: 0,
         startingBalance: Math.max(debt.balance, 0),
       });
     }
   }
 
-  // The balance is money already in hand, so it lands immediately — before any
-  // interest has a chance to accrue.
-  const lumpSumRemainder = cascade(Math.max(currentBalance, 0), order, remaining);
+  // The balance is money already in hand, so it lands immediately.
+  const lumpSum = Math.max(currentBalance, 0);
+  const lumpSumRemainder = cascade(lumpSum, order, remaining);
+  const paidHistory: number[] = [lumpSum - lumpSumRemainder];
   for (const debt of order) {
     if (!outcomeById.has(debt.id) && (remaining.get(debt.id) ?? 0) <= EPSILON) {
       outcomeById.set(debt.id, {
         debtId: debt.id,
         status: 'paid',
         payoffWeek: 0,
-        interestPaid: 0,
         startingBalance: Math.max(debt.balance, 0),
       });
     }
@@ -129,14 +144,6 @@ export function simulateSnowball(
   while (order.some(isOpen) && week < MAX_WEEKS) {
     week++;
 
-    for (const debt of order) {
-      if (!isOpen(debt) || debt.apr <= 0) continue;
-      const owed = remaining.get(debt.id)!;
-      const interest = owed * (debt.apr / WEEKS_PER_YEAR);
-      remaining.set(debt.id, owed + interest);
-      interestById.set(debt.id, interestById.get(debt.id)! + interest);
-    }
-
     let minimumsPaid = 0;
     for (const debt of order) {
       if (!isOpen(debt)) continue;
@@ -145,7 +152,13 @@ export function simulateSnowball(
       minimumsPaid += pay;
     }
 
-    cascade(Math.max(totalWeeklyBudget - minimumsPaid, 0), order, remaining);
+    const attackBudget = Math.max(totalWeeklyBudget - minimumsPaid, 0);
+    const attackUnspent = cascade(attackBudget, order, remaining);
+    // Only cash that actually reached a lender counts; a final-week surplus
+    // stays in the user's pocket and must not be reported as debt spending.
+    paidHistory.push(
+      paidHistory[paidHistory.length - 1] + minimumsPaid + (attackBudget - attackUnspent),
+    );
 
     for (const debt of order) {
       if (!outcomeById.has(debt.id) && (remaining.get(debt.id) ?? 0) <= EPSILON) {
@@ -153,7 +166,6 @@ export function simulateSnowball(
           debtId: debt.id,
           status: 'paid',
           payoffWeek: week,
-          interestPaid: interestById.get(debt.id)!,
           startingBalance: Math.max(debt.balance, 0),
         });
       }
@@ -161,32 +173,30 @@ export function simulateSnowball(
     }
   }
 
-  // Anything still open hit the cap: its minimum can't outrun its own interest.
+  // Anything still open hit the cap, which without interest can only mean
+  // there was no money reaching it at all.
   for (const debt of order) {
     if (!outcomeById.has(debt.id)) {
       outcomeById.set(debt.id, {
         debtId: debt.id,
         status: 'unreachable',
         payoffWeek: null,
-        interestPaid: interestById.get(debt.id)!,
         startingBalance: Math.max(debt.balance, 0),
       });
     }
   }
 
-  const outcomes = [...outcomeById.values()];
-  const anyUnreachable = outcomes.some((o) => o.status === 'unreachable');
-  const totalInterest = outcomes.reduce((sum, o) => sum + o.interestPaid, 0);
+  const anyUnreachable = [...outcomeById.values()].some((o) => o.status === 'unreachable');
   const principal = order.reduce((sum, debt) => sum + Math.max(debt.balance, 0), 0);
 
   return {
     order,
     outcomeById,
     debtFreeWeek: anyUnreachable || order.length === 0 ? (order.length === 0 ? 0 : null) : week,
-    totalInterest,
-    totalPaid: principal + totalInterest,
+    totalPaid: principal,
     lumpSumRemainder,
     balanceHistory,
+    paidHistory,
   };
 }
 
@@ -273,7 +283,6 @@ export function buildDebtPayoffSeries(
 export interface DiversionImpact {
   /** Extra weeks until debt-free caused by the diversion. null if incomparable. */
   weeksDelayed: number | null;
-  extraInterest: number;
   debtFreeWeekWithout: number | null;
   debtFreeWeekWith: number | null;
 }
@@ -298,7 +307,6 @@ export function diversionImpact(
 
   return {
     weeksDelayed,
-    extraInterest: with_.totalInterest - without.totalInterest,
     debtFreeWeekWithout: without.debtFreeWeek,
     debtFreeWeekWith: with_.debtFreeWeek,
   };

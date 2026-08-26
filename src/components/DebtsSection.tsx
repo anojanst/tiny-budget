@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { DebtRow } from '@/components/DebtRow';
 import { WidgetHeading } from '@/components/WidgetHeading';
 import { formatCurrency } from '@/lib/format';
@@ -41,8 +40,6 @@ export function DebtsSection({
       name: name.trim(),
       balance: parsedBalance,
       minimumPayment: Math.max(Number(minimum) || 0, 0),
-      apr: 0,
-      lenderType: 'institutional',
     });
     setName('');
     setBalance('');
@@ -62,24 +59,27 @@ export function DebtsSection({
       />
 
       <CardContent>
-        {debts.length === 0 && (
+        {debts.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             No debts listed — you're debt free. Add one below if that changes.
           </p>
-        )}
-        {snowball.order.map((debt, index) => (
-          <div key={debt.id}>
-            {index > 0 && <Separator className="my-1" />}
-            <DebtRow
-              debt={debt}
-              position={index + 1}
-              outcome={snowball.outcomeById.get(debt.id)}
-              isActive={debt.id === active}
-              onUpdate={onUpdate}
-              onRemove={onRemove}
-            />
+        ) : (
+          /* Two per row on wide screens: the tiles are compact enough that a
+             single column wastes most of the width once there are a few. */
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            {snowball.order.map((debt, index) => (
+              <DebtRow
+                key={debt.id}
+                debt={debt}
+                position={index + 1}
+                outcome={snowball.outcomeById.get(debt.id)}
+                isActive={debt.id === active}
+                onUpdate={onUpdate}
+                onRemove={onRemove}
+              />
+            ))}
           </div>
-        ))}
+        )}
       </CardContent>
 
       <CardFooter className="flex-wrap gap-2">

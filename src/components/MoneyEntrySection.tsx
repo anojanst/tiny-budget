@@ -56,15 +56,30 @@ export function MoneyEntrySection({
       />
 
       <CardContent>
-        {entries.length === 0 && (
+        {entries.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">{emptyLabel}</p>
-        )}
-        {entries.map((entry, index) => (
-          <div key={entry.id}>
-            {index > 0 && <Separator />}
-            <MoneyEntryRow entry={entry} onUpdate={onUpdate} onRemove={onRemove} />
+        ) : (
+          /* Two columns from md up: a real budget runs past twenty categories,
+             and a single column pushes most of them below the fold. The column
+             rule stands in for the per-row separators a single list used. */
+          <div className="grid grid-cols-1 gap-x-8 md:grid-cols-2 md:divide-x md:divide-border">
+            {[0, 1].map((column) => {
+              const half = Math.ceil(entries.length / 2);
+              const slice = column === 0 ? entries.slice(0, half) : entries.slice(half);
+              if (slice.length === 0) return null;
+              return (
+                <div key={column} className={column === 1 ? 'md:pl-8' : undefined}>
+                  {slice.map((entry, index) => (
+                    <div key={entry.id}>
+                      {index > 0 && <Separator />}
+                      <MoneyEntryRow entry={entry} onUpdate={onUpdate} onRemove={onRemove} />
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
-        ))}
+        )}
       </CardContent>
 
       <CardFooter className="flex-wrap gap-2">

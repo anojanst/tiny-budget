@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { MobileNav } from '@/components/shell/MobileNav';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { OnboardingWizard } from '@/components/OnboardingWizard';
 import { OverviewPage } from '@/pages/OverviewPage';
 import { DebtsPage } from '@/pages/DebtsPage';
@@ -16,18 +18,22 @@ function App() {
   const onboarding = useOnboarding();
   const { route, navigate } = useHashRoute();
 
-  const timeMachine = useTimeMachine(
-    budget.budget.goals,
-    budget.goalContribution,
-    budget.goalFundingBalance,
-  );
+  const timeMachine = useTimeMachine({
+    goals: budget.budget.goals,
+    weeklyLeftover: budget.weeklyLeftover,
+    goalContribution: budget.goalContribution,
+    currentBalance: budget.budget.currentBalance,
+    hasDebts: budget.hasDebts,
+    snowball: budget.snowball,
+    goalFundingBalance: budget.goalFundingBalance,
+  });
+
+  const [confirmingReset, setConfirmingReset] = useState(false);
 
   const handleNewBudget = () => {
-    if (window.confirm('Start a new budget? This clears all current data.')) {
-      budget.resetBudget();
-      onboarding.restart();
-      navigate('overview');
-    }
+    budget.resetBudget();
+    onboarding.restart();
+    navigate('overview');
   };
 
   if (!onboarding.completed) {
@@ -66,9 +72,19 @@ function App() {
           debtCount={budget.budget.debts.length}
           goalCount={budget.budget.goals.length}
           debtFreeLabel={debtFreeLabel}
-          onNewBudget={handleNewBudget}
+          onNewBudget={() => setConfirmingReset(true)}
         />
       </div>
+
+      <ConfirmDialog
+        open={confirmingReset}
+        onOpenChange={setConfirmingReset}
+        title="Start a new budget?"
+        description="This clears your income, expenses, debts, and goals from this browser. It can't be undone."
+        confirmLabel="Clear everything"
+        destructive
+        onConfirm={handleNewBudget}
+      />
 
       <MobileNav route={route} onNavigate={navigate} />
 
@@ -76,13 +92,16 @@ function App() {
       <main className="min-w-0 flex-1 px-5 pt-6 pb-24 lg:px-8 lg:py-8">
         <div className="mx-auto max-w-[1400px]">
           {route === 'overview' && (
-            <OverviewPage budget={budget} today={timeMachine.today} onNavigate={navigate} />
+            <OverviewPage budget={budget} timeMachine={timeMachine} onNavigate={navigate} />
           )}
           {route === 'debts' && <DebtsPage budget={budget} today={timeMachine.today} />}
           {route === 'budget' && <BudgetPage budget={budget} />}
           {route === 'goals' && <GoalsPage budget={budget} timeMachine={timeMachine} />}
           {route === 'settings' && (
-            <SettingsPage onNewBudget={handleNewBudget} onRerunSetup={onboarding.restart} />
+            <SettingsPage
+              onNewBudget={() => setConfirmingReset(true)}
+              onRerunSetup={onboarding.restart}
+            />
           )}
         </div>
       </main>

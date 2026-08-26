@@ -2,7 +2,6 @@ import { PageHeader } from '@/components/shell/PageHeader';
 import { GoalsSection } from '@/components/GoalsSection';
 import { GoalDiversionDial } from '@/components/GoalDiversionDial';
 import { SavingsProjection } from '@/components/SavingsProjection';
-import { TimeMachine } from '@/components/TimeMachine';
 import { formatShortDate } from '@/lib/dates';
 import type { useBudget } from '@/hooks/useBudget';
 import type { useTimeMachine } from '@/hooks/useTimeMachine';
@@ -66,23 +65,14 @@ export function GoalsPage({ budget, timeMachine }: GoalsPageProps) {
           onRemove={removeGoal}
         />
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <SavingsProjection
-            goals={data.goals}
-            weeklyLeftover={goalContribution}
-            currentBalance={goalFundingBalance}
-          />
-          <TimeMachine
-            today={timeMachine.today}
-            dateValue={timeMachine.dateValue}
-            onDateChange={timeMachine.setDateValue}
-            targetDate={timeMachine.targetDate}
-            weeks={timeMachine.weeks}
-            balance={timeMachine.balance}
-            goalAllocation={timeMachine.goalAllocation}
-            freeBalance={timeMachine.freeBalance}
-          />
-        </div>
+        {/* The horizon these projections are measured against is picked on the
+            Overview page — one control, shared, rather than the same card
+            repeated on two screens. */}
+        <SavingsProjection
+          goals={data.goals}
+          weeklyLeftover={goalContribution}
+          currentBalance={goalFundingBalance}
+        />
       </div>
     </>
   );

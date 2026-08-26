@@ -41,20 +41,20 @@ export const AllocationPie = memo(function AllocationPie({ expenses, weeklyIncom
   const total = slices.reduce((sum, s) => sum + s.weeklyAmount, 0);
 
   return (
-    <Card className="h-full">
+    /* No h-full: the card sizes to its content so it can't be stretched into a
+       column of empty space by whatever sits beside it. */
+    <Card>
       <WidgetHeading title="Where your income goes" />
-      <CardContent className="flex min-h-0 flex-1 flex-col">
+      <CardContent className="flex flex-col">
         {slices.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             Add income and expenses to see the breakdown.
           </p>
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col items-center gap-4 sm:flex-row">
-            {/* Square by aspect ratio, so the arc scales with whatever height the
-                dashboard cell gives it instead of being pinned to one size. */}
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
             <ChartContainer
               config={config}
-              className="mx-auto aspect-square h-40 w-40 shrink-0 sm:h-full sm:max-h-52 sm:w-auto"
+              className="mx-auto aspect-square h-36 w-36 shrink-0"
             >
               <PieChart>
                 <ChartTooltip
@@ -73,8 +73,8 @@ export const AllocationPie = memo(function AllocationPie({ expenses, weeklyIncom
                   data={slices}
                   dataKey="weeklyAmount"
                   nameKey="key"
-                  innerRadius={44}
-                  outerRadius={76}
+                  innerRadius={40}
+                  outerRadius={70}
                   // 2px of surface between slices — the gap separates, not a stroke.
                   paddingAngle={2}
                   stroke="var(--card)"

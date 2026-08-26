@@ -1,10 +1,8 @@
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { StatCard } from '@/components/StatCard';
 import { PageHeader } from '@/components/shell/PageHeader';
 import { IncomeCard } from '@/components/IncomeCard';
 import { MoneyEntrySection } from '@/components/MoneyEntrySection';
 import { AllocationPie } from '@/components/AllocationPie';
-import { formatCurrency } from '@/lib/format';
 import type { useBudget } from '@/hooks/useBudget';
 
 interface BudgetPageProps {
@@ -44,29 +42,10 @@ export function BudgetPage({ budget }: BudgetPageProps) {
         </Alert>
       )}
 
-      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard
-          featured
-          label="Left each week"
-          value={formatCurrency(weeklyLeftover)}
-          hint={
-            hasDebts
-              ? `${formatCurrency(debtMinimums)}/wk of this is committed to minimums`
-              : 'Income minus expenses'
-          }
-        />
-        <StatCard
-          label="Weekly income"
-          value={formatCurrency(weeklyIncome)}
-          hint="Take-home, after tax"
-        />
-        <StatCard
-          label="Weekly expenses"
-          value={formatCurrency(weeklyExpenses)}
-          hint={`Across ${data.expenses.length} categor${data.expenses.length === 1 ? 'y' : 'ies'}`}
-        />
-      </div>
-
+      {/* Inputs and totals first, then the list. The breakdown chart sits
+          below the list rather than beside it: paired with the list it was
+          stranded in a tall column of empty space, and above it, it pushed
+          half the categories off screen. */}
       <div className="space-y-4">
         <IncomeCard
           income={data.income}
@@ -74,26 +53,28 @@ export function BudgetPage({ budget }: BudgetPageProps) {
           currentBalance={data.currentBalance}
           onCurrentBalanceChange={setCurrentBalance}
           weeklyIncome={weeklyIncome}
+          weeklyExpenses={weeklyExpenses}
+          weeklyLeftover={weeklyLeftover}
           hasDebts={hasDebts}
+          debtMinimums={debtMinimums}
         />
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <MoneyEntrySection
-            title="Expenses"
-            description="Mix weekly and monthly — everything is normalised to a weekly figure."
-            emptyLabel="No expenses yet — add one below."
-            entries={data.expenses}
-            weeklyTotal={weeklyExpenses}
-            onAdd={addExpense}
-            onUpdate={updateExpense}
-            onRemove={removeExpense}
-          />
-          <AllocationPie
-            expenses={data.expenses}
-            weeklyIncome={weeklyIncome}
-            weeklyLeftover={weeklyLeftover}
-          />
-        </div>
+        <MoneyEntrySection
+          title="Expenses"
+          description="Mix weekly and monthly — everything is normalised to a weekly figure."
+          emptyLabel="No expenses yet — add one below."
+          entries={data.expenses}
+          weeklyTotal={weeklyExpenses}
+          onAdd={addExpense}
+          onUpdate={updateExpense}
+          onRemove={removeExpense}
+        />
+
+        <AllocationPie
+          expenses={data.expenses}
+          weeklyIncome={weeklyIncome}
+          weeklyLeftover={weeklyLeftover}
+        />
       </div>
     </>
   );

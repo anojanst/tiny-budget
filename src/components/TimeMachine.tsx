@@ -23,6 +23,11 @@ interface TimeMachineProps {
   balance: number;
   goalAllocation: number;
   freeBalance: number;
+  /** Cash paid to lenders by the horizon — money that has left for good. */
+  debtSpend: number;
+  hasDebts: boolean;
+  debtFreeWeek: number | null;
+  debtsClearedByHorizon: boolean;
 }
 
 export function TimeMachine({
@@ -34,6 +39,10 @@ export function TimeMachine({
   balance,
   goalAllocation,
   freeBalance,
+  debtSpend,
+  hasDebts,
+  debtFreeWeek,
+  debtsClearedByHorizon,
 }: TimeMachineProps) {
   const inDebt = balance < 0;
   // Distinct from actual debt: every dollar is accounted for, just not free
@@ -102,14 +111,27 @@ export function TimeMachine({
               {inDebt ? 'in debt' : 'free'}
             </span>
           </p>
-          {/* Reconciles the hero with the Goals widget: the balance funds
-              unmet goals first, same as the leftover, so it's only free once
-              every goal is fully funded. */}
-          {goalAllocation > 0.5 && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {formatCurrency(balance)} total · {formatCurrency(goalAllocation)} to goals — see Goals for per-goal detail
-            </p>
-          )}
+          {/* Reconciles the hero with where the money actually went. While in
+              debt the dominant line is what left for lenders, which is why the
+              free figure stays flat until the payoff date passes. */}
+          <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+            {hasDebts && debtSpend > 0.5 && (
+              <p>{formatCurrency(debtSpend)} paid off your debts by then</p>
+            )}
+            {goalAllocation > 0.5 && (
+              <p>{formatCurrency(goalAllocation)} committed to goals</p>
+            )}
+            {hasDebts && debtFreeWeek !== null && !debtsClearedByHorizon && (
+              <p className="text-foreground">
+                Still paying off debt until week {debtFreeWeek} — nothing is free before then.
+              </p>
+            )}
+            {hasDebts && debtsClearedByHorizon && debtFreeWeek !== null && (
+              <p className="text-primary">
+                Debt free at week {debtFreeWeek} — everything after that piles up here.
+              </p>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

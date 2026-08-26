@@ -13,15 +13,16 @@ accounts, no data leaves the machine.
   expenses, and debts before dropping you on the dashboard, so you're never
   staring at an empty screen wondering where to start.
 - **Debt snowball** — the Ramsey method. Debts are ordered smallest balance
-  first (deliberately ignoring interest rate), every minimum gets paid, and
-  every spare dollar attacks the top debt. When it clears, its payment rolls
-  into the next one — the payment snowballs. Interest compounds weekly, and
-  both institutional lenders and interest-free family loans are supported.
-- **Debt-free date** — the headline number: when you're out, what interest
-  costs you, what you'll have paid in total.
+  first, every minimum gets paid, and every spare dollar attacks the top debt.
+  When it clears, its payment rolls into the next one — the payment snowballs.
+  A debt is just two numbers: what you owe and the least you must pay each
+  week. Interest isn't asked for, because a real minimum payment already covers
+  it — so the balance is simply paid down.
+- **Debt-free date** — the headline number: when you're out, and what you'll
+  have paid to get there.
 - **Debt vs. savings dial** — saving while you owe money is allowed, but never
   silent. Move the dial and it tells you exactly how many weeks it adds to your
-  debt-free date and how much extra interest it costs. Defaults to $0.
+  debt-free date. Defaults to $0.
 - **Honest about shortfalls** — if your leftover can't cover your minimum
   payments, the app says so and refuses to project a payoff date you can't hit.
 - **Weekly-normalized budgeting** — mix weekly and monthly amounts; everything
