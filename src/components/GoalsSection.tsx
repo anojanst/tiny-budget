@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { GoalRow } from '@/components/GoalRow';
 import { WidgetHeading } from '@/components/WidgetHeading';
 import type { Goal } from '@/types/budget';
@@ -84,30 +83,33 @@ export function GoalsSection({
       />
 
       <CardContent>
-        {goals.length === 0 && (
+        {goals.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             No goals yet — add one below.
           </p>
+        ) : (
+          /* Up to three per row, same as the debt tiles: both lists are short
+             cards read at a glance, and one column wastes the width. */
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {sortedGoals.map((goal) => {
+              const progress = goalProgressById.get(goal.id);
+              if (!progress) return null;
+              return (
+                <GoalRow
+                  key={goal.id}
+                  goal={goal}
+                  progress={progress}
+                  tierSize={tierSizeByPriority.get(goal.priority) ?? 1}
+                  projection={projectionById.get(goal.id)}
+                  horizonLabel={horizonLabel}
+                  unreachableHint={unreachableHint}
+                  onUpdate={onUpdate}
+                  onRemove={onRemove}
+                />
+              );
+            })}
+          </div>
         )}
-        {sortedGoals.map((goal, index) => {
-          const progress = goalProgressById.get(goal.id);
-          if (!progress) return null;
-          return (
-            <div key={goal.id}>
-              {index > 0 && <Separator className="my-1" />}
-              <GoalRow
-                goal={goal}
-                progress={progress}
-                tierSize={tierSizeByPriority.get(goal.priority) ?? 1}
-                projection={projectionById.get(goal.id)}
-                horizonLabel={horizonLabel}
-                unreachableHint={unreachableHint}
-                onUpdate={onUpdate}
-                onRemove={onRemove}
-              />
-            </div>
-          );
-        })}
       </CardContent>
 
       <CardFooter className="flex-wrap gap-2">

@@ -31,14 +31,32 @@ interface GoalRowProps {
   onRemove: (id: string) => void;
 }
 
-export const GoalRow = memo(function GoalRow({ goal, progress, tierSize, projection, horizonLabel, unreachableHint, onUpdate, onRemove }: GoalRowProps) {
+/**
+ * A self-contained tile rather than a wide row, so several fit across a
+ * desktop column — matching the debt tiles, since the two lists are read the
+ * same way.
+ */
+export const GoalRow = memo(function GoalRow({
+  goal,
+  progress,
+  tierSize,
+  projection,
+  horizonLabel,
+  unreachableHint,
+  onUpdate,
+  onRemove,
+}: GoalRowProps) {
   const currentPercent = progress.percentComplete;
   const projectedPercent = projection?.projectedPercent ?? currentPercent;
   const showsProjection = projectedPercent > currentPercent + 0.5;
+
   return (
-    <div className="py-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative w-14 shrink-0" title="Priority — lower number is funded first">
+    <div className="flex h-full flex-col gap-3 rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center gap-2">
+        <div
+          className="relative w-12 shrink-0"
+          title="Priority — lower number is funded first"
+        >
           <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-muted-foreground">
             #
           </span>
@@ -50,38 +68,20 @@ export const GoalRow = memo(function GoalRow({ goal, progress, tierSize, project
             onChange={(e) =>
               onUpdate(goal.id, { priority: Math.max(1, Math.round(e.target.valueAsNumber) || 1) })
             }
-            aria-label="Priority — lower number is funded first"
-            className="pl-5"
+            aria-label={`${goal.name || 'Goal'} priority — lower number is funded first`}
+            className="px-0 pl-5"
           />
         </div>
         <Input
           value={goal.name}
           onChange={(e) => onUpdate(goal.id, { name: e.target.value })}
           placeholder="Goal name"
-          className="min-w-32 flex-1"
-        />
-        <Input
-          type="number"
-          min="0"
-          step="0.01"
-          value={goal.currentSaved}
-          onChange={(e) => onUpdate(goal.id, { currentSaved: e.target.valueAsNumber || 0 })}
-          placeholder="Saved so far"
-          className="w-32"
-        />
-        <span className="shrink-0 text-sm text-muted-foreground">of</span>
-        <Input
-          type="number"
-          min="0"
-          step="0.01"
-          value={goal.targetAmount}
-          onChange={(e) => onUpdate(goal.id, { targetAmount: e.target.valueAsNumber || 0 })}
-          placeholder="Target"
-          className="w-32"
+          className="min-w-0 flex-1"
         />
         <Button
           variant="ghost"
           size="icon"
+          className="shrink-0"
           aria-label={`Remove ${goal.name || 'goal'}`}
           onClick={() => onRemove(goal.id)}
         >
@@ -89,7 +89,32 @@ export const GoalRow = memo(function GoalRow({ goal, progress, tierSize, project
         </Button>
       </div>
 
-      <div className="mt-2 flex items-center gap-3">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="flex flex-col gap-1">
+          <span className="text-[0.7rem] text-muted-foreground">Saved so far</span>
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            value={goal.currentSaved}
+            onChange={(e) => onUpdate(goal.id, { currentSaved: e.target.valueAsNumber || 0 })}
+            aria-label={`${goal.name || 'Goal'} saved so far`}
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[0.7rem] text-muted-foreground">Target</span>
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            value={goal.targetAmount}
+            onChange={(e) => onUpdate(goal.id, { targetAmount: e.target.valueAsNumber || 0 })}
+            aria-label={`${goal.name || 'Goal'} target amount`}
+          />
+        </label>
+      </div>
+
+      <div className="flex items-center gap-3">
         <div
           role="progressbar"
           aria-valuenow={Math.round(currentPercent)}
@@ -125,19 +150,22 @@ export const GoalRow = memo(function GoalRow({ goal, progress, tierSize, project
         </span>
       </div>
 
-      <div className="mt-2">
+      {/* Status pinned to the bottom so tiles in a row line up even when one
+          of them is carrying a wrapped warning. */}
+      <div className="mt-auto space-y-1 pt-1">
         {progress.status === 'met' && (
           <Badge className="bg-primary text-primary-foreground">Goal met!</Badge>
         )}
         {progress.status === 'on-track' && progress.weeksRemaining !== null && (
-          <p className="text-sm text-muted-foreground">
-            {formatCurrency(progress.remainingAmount)} left — {formatWeeksRemaining(progress.weeksRemaining)}
-            {tierSize > 1 && (
-              <span>
-                {' '}
-                · splits priority {goal.priority} with {tierSize - 1} other{tierSize - 1 > 1 ? 's' : ''}
-              </span>
-            )}
+          <p className="text-sm leading-snug text-muted-foreground">
+            {formatCurrency(progress.remainingAmount)} left —{' '}
+            {formatWeeksRemaining(progress.weeksRemaining)}
+          </p>
+        )}
+        {progress.status === 'on-track' && tierSize > 1 && (
+          <p className="text-xs text-muted-foreground">
+            Splits priority {goal.priority} with {tierSize - 1} other
+            {tierSize - 1 > 1 ? 's' : ''}
           </p>
         )}
         {progress.status === 'unreachable' && (
@@ -146,8 +174,9 @@ export const GoalRow = memo(function GoalRow({ goal, progress, tierSize, project
           </Alert>
         )}
         {showsProjection && horizonLabel && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            {projection?.reached ? 'Reached' : `${Math.round(projectedPercent)}%`} by {horizonLabel}
+          <p className="text-xs text-muted-foreground">
+            {projection?.reached ? 'Reached' : `${Math.round(projectedPercent)}%`} by{' '}
+            {horizonLabel}
           </p>
         )}
       </div>
