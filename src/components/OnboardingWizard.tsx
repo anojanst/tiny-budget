@@ -168,7 +168,7 @@ export function OnboardingWizard({
                   placeholder="e.g. Rent"
                   aria-label="Expense name"
                   className="min-w-28 flex-1"
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddExpense()}
+                  onEnter={handleAddExpense}
                 />
                 <Input
                   type="number"

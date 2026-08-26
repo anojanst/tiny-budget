@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import type { Route } from '@/hooks/useHashRoute';
 import {
@@ -25,19 +26,11 @@ interface SidebarProps {
   onNavigate: (route: Route) => void;
   debtCount: number;
   goalCount: number;
-  /** Drives the debt row's chip: the headline number people come back for. */
-  debtFreeLabel: string | null;
-  onNewBudget: () => void;
+  /** Rendered at the foot of the nav — see TimeMachine for why it lives here. */
+  footer?: ReactNode;
 }
 
-export function Sidebar({
-  route,
-  onNavigate,
-  debtCount,
-  goalCount,
-  debtFreeLabel,
-  onNewBudget,
-}: SidebarProps) {
+export function Sidebar({ route, onNavigate, debtCount, goalCount, footer }: SidebarProps) {
   const menu: NavItem[] = [
     { route: 'overview', label: 'Overview', icon: LayoutDashboard },
     {
@@ -124,23 +117,7 @@ export function Sidebar({
         </div>
       </nav>
 
-      {/* Promo slot in the reference; here it's the one number that matters,
-          so the goal stays in view from every page. */}
-      <div className="rounded-xl bg-foreground p-4 text-background">
-        <p className="text-[0.7rem] tracking-wide text-background/60 uppercase">
-          {debtFreeLabel ? 'Debt free in' : 'Status'}
-        </p>
-        <p className="mt-1 text-xl font-semibold tracking-tight">
-          {debtFreeLabel ?? 'Debt free'}
-        </p>
-        <button
-          type="button"
-          onClick={onNewBudget}
-          className="mt-3 w-full rounded-lg bg-background/15 px-3 py-1.5 text-xs font-medium text-background transition-colors hover:bg-background/25"
-        >
-          Start over
-        </button>
-      </div>
+      {footer}
     </aside>
   );
 }

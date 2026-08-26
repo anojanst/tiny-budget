@@ -1,8 +1,4 @@
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { WidgetHeading } from '@/components/WidgetHeading';
 import { formatCurrency } from '@/lib/format';
 import { addMonths, formatShortDate, toDateInputValue } from '@/lib/dates';
 import { cn } from '@/lib/utils';
@@ -20,120 +16,106 @@ interface TimeMachineProps {
   onDateChange: (value: string) => void;
   targetDate: Date | null;
   weeks: number;
-  balance: number;
-  goalAllocation: number;
   freeBalance: number;
-  /** Cash paid to lenders by the horizon — money that has left for good. */
+  /** Cash paid off debts by the horizon — money that has left for good. */
   debtSpend: number;
   hasDebts: boolean;
   debtFreeWeek: number | null;
   debtsClearedByHorizon: boolean;
+  className?: string;
 }
 
+/**
+ * Lives in the sidebar rather than on a page, because "where will I be by X"
+ * is a question you ask against whatever you're currently editing — expenses,
+ * debts, goals — not a destination of its own.
+ *
+ * Laid out for a narrow column: everything stacks, and only the free figure
+ * gets any size.
+ */
 export function TimeMachine({
   today,
   dateValue,
   onDateChange,
   targetDate,
   weeks,
-  balance,
-  goalAllocation,
   freeBalance,
   debtSpend,
   hasDebts,
   debtFreeWeek,
   debtsClearedByHorizon,
+  className,
 }: TimeMachineProps) {
-  const inDebt = balance < 0;
-  // Distinct from actual debt: every dollar is accounted for, just not free
-  // yet — it's on its way to a goal instead.
-  const isFullyCommitted = !inDebt && freeBalance < 0.005 && goalAllocation > 0.005;
-
   return (
-    <Card className="h-full">
-      <WidgetHeading title="Time machine" description="Where you'd stand on a future date." />
-      {/* Same "controls left, result right" grammar as Right Now: the dial
-          you turn, and what it works out to. Per-goal detail now lives in the
-          Goals widget itself, which is the surface it's actually edited on. */}
-      <CardContent className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-start">
-        <div className="flex shrink-0 flex-col gap-2 sm:w-60">
-          <Input
-            type="date"
-            value={dateValue}
-            min={toDateInputValue(today)}
-            onChange={(e) => onDateChange(e.target.value)}
-            className="w-full"
-            aria-label="Travel to date"
-          />
-          <div className="flex gap-1.5">
-            {PRESETS.map((preset) => {
-              const isActive = dateValue === toDateInputValue(addMonths(today, preset.months));
-              return (
-                <Button
-                  key={preset.label}
-                  variant={isActive ? 'default' : 'outline'}
-                  size="xs"
-                  className="flex-1"
-                  aria-pressed={isActive}
-                  onClick={() => onDateChange(toDateInputValue(addMonths(today, preset.months)))}
-                >
-                  {preset.label}
-                </Button>
-              );
-            })}
-          </div>
-        </div>
+    <div className={cn('rounded-xl border border-border bg-muted/40 p-3.5', className)}>
+      <p className="mb-2 text-[0.7rem] font-medium tracking-wider text-muted-foreground uppercase">
+        Time machine
+      </p>
 
-        <Separator orientation="vertical" className="hidden sm:block" />
-        <Separator className="sm:hidden" />
+      <Input
+        type="date"
+        value={dateValue}
+        min={toDateInputValue(today)}
+        onChange={(e) => onDateChange(e.target.value)}
+        className="w-full bg-card"
+        aria-label="Travel to date"
+      />
 
-        <div className="flex-1">
-          <p className="text-xs text-muted-foreground">
-            {targetDate ? (
-              <>
-                By {formatShortDate(targetDate)} · {Math.round(weeks)} weeks
-              </>
-            ) : (
-              'Pick a date'
-            )}
+      <div className="mt-1.5 grid grid-cols-4 gap-1">
+        {PRESETS.map((preset) => {
+          const isActive = dateValue === toDateInputValue(addMonths(today, preset.months));
+          return (
+            <button
+              key={preset.label}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => onDateChange(toDateInputValue(addMonths(today, preset.months)))}
+              className={cn(
+                'rounded-md py-1 text-[0.7rem] font-medium transition-colors',
+                isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {preset.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 border-t border-border pt-3">
+        <p className="text-[0.7rem] text-muted-foreground">
+          {targetDate ? `By ${formatShortDate(targetDate)}` : 'Pick a date'}
+        </p>
+        <p className="mt-0.5 text-xl font-semibold tracking-tight tabular-nums text-primary">
+          {formatCurrency(freeBalance)}
+          <span className="ml-1 text-xs font-normal text-muted-foreground">free</span>
+        </p>
+
+        {/* One line of context, not three — in a sidebar the reason the number
+            is what it is matters more than the full reconciliation. */}
+        {hasDebts && debtFreeWeek !== null && !debtsClearedByHorizon && (
+          <p className="mt-1 text-[0.7rem] leading-snug text-muted-foreground">
+            Still paying off debt until week {debtFreeWeek} — {formatCurrency(debtSpend)} of it by
+            then.
           </p>
-          {/* Hero figure — what's actually free, not the raw total. The
-              balance funds unmet goals first (instantly, same as the weekly
-              leftover), so this reads $0 until every goal is fully funded. */}
-          <p
-            className={cn(
-              'text-4xl font-semibold tracking-tight',
-              inDebt ? 'text-destructive' : isFullyCommitted ? 'text-foreground' : 'text-primary',
-            )}
-          >
-            {formatCurrency(Math.abs(inDebt ? balance : freeBalance))}
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              {inDebt ? 'in debt' : 'free'}
-            </span>
+        )}
+        {hasDebts && debtsClearedByHorizon && debtFreeWeek !== null && (
+          <p className="mt-1 text-[0.7rem] leading-snug text-primary">
+            Debt free at week {debtFreeWeek} — it piles up after that.
           </p>
-          {/* Reconciles the hero with where the money actually went. While in
-              debt the dominant line is what left for lenders, which is why the
-              free figure stays flat until the payoff date passes. */}
-          <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-            {hasDebts && debtSpend > 0.5 && (
-              <p>{formatCurrency(debtSpend)} paid off your debts by then</p>
-            )}
-            {goalAllocation > 0.5 && (
-              <p>{formatCurrency(goalAllocation)} committed to goals</p>
-            )}
-            {hasDebts && debtFreeWeek !== null && !debtsClearedByHorizon && (
-              <p className="text-foreground">
-                Still paying off debt until week {debtFreeWeek} — nothing is free before then.
-              </p>
-            )}
-            {hasDebts && debtsClearedByHorizon && debtFreeWeek !== null && (
-              <p className="text-primary">
-                Debt free at week {debtFreeWeek} — everything after that piles up here.
-              </p>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        )}
+        {hasDebts && debtFreeWeek === null && (
+          <p className="mt-1 text-[0.7rem] leading-snug text-muted-foreground">
+            Nothing comes free while a debt isn't being paid off.
+          </p>
+        )}
+        {!hasDebts && weeks > 0 && (
+          <p className="mt-1 text-[0.7rem] leading-snug text-muted-foreground">
+            {Math.round(weeks)} weeks of saving from today.
+          </p>
+        )}
+      </div>
+    </div>
   );
 }

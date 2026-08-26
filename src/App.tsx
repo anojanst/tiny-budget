@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { MobileNav } from '@/components/shell/MobileNav';
+import { TimeMachine } from '@/components/TimeMachine';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { OnboardingWizard } from '@/components/OnboardingWizard';
 import { OverviewPage } from '@/pages/OverviewPage';
@@ -57,12 +58,20 @@ function App() {
     );
   }
 
-  const debtFreeLabel =
-    budget.hasDebts && budget.snowball.debtFreeWeek !== null
-      ? `${budget.snowball.debtFreeWeek} weeks`
-      : budget.hasDebts
-        ? 'Not on track'
-        : null;
+  const timeMachinePanel = (
+    <TimeMachine
+      today={timeMachine.today}
+      dateValue={timeMachine.dateValue}
+      onDateChange={timeMachine.setDateValue}
+      targetDate={timeMachine.targetDate}
+      weeks={timeMachine.weeks}
+      freeBalance={timeMachine.freeBalance}
+      debtSpend={timeMachine.debtSpend}
+      hasDebts={timeMachine.hasDebts}
+      debtFreeWeek={timeMachine.debtFreeWeek}
+      debtsClearedByHorizon={timeMachine.debtsClearedByHorizon}
+    />
+  );
 
   return (
     /* The sidebar is pinned and the content column is the only thing that
@@ -74,8 +83,7 @@ function App() {
           onNavigate={navigate}
           debtCount={budget.budget.debts.length}
           goalCount={budget.budget.goals.length}
-          debtFreeLabel={debtFreeLabel}
-          onNewBudget={() => setConfirmingReset(true)}
+          footer={timeMachinePanel}
         />
       </div>
 
@@ -110,6 +118,10 @@ function App() {
               importJson={budget.importJson}
             />
           )}
+
+          {/* The sidebar is hidden below lg, so the same panel trails the
+              content there rather than disappearing on small screens. */}
+          <div className="mt-4 lg:hidden">{timeMachinePanel}</div>
         </div>
       </main>
     </div>

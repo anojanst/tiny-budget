@@ -92,7 +92,7 @@ export function MoneyEntrySection({
           placeholder="Name"
           aria-label="New expense name"
           className="min-w-28 flex-1"
-          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+          onEnter={handleAdd}
         />
         <Input
           type="number"

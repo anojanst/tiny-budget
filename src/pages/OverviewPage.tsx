@@ -4,7 +4,6 @@ import { FocusCard } from '@/components/FocusCard';
 import { PageHeader } from '@/components/shell/PageHeader';
 import { SnowballProjection } from '@/components/SnowballProjection';
 import { SavingsProjection } from '@/components/SavingsProjection';
-import { TimeMachine } from '@/components/TimeMachine';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/format';
 import { addWeeks, formatShortDate } from '@/lib/dates';
@@ -141,12 +140,10 @@ export function OverviewPage({ budget, timeMachine, onNavigate }: OverviewPagePr
         )}
       </div>
 
-      {/* Both halves of "the future" stacked on the left — the curve, then the
-          pick-a-date readout — beside the single next action. */}
-      {/* items-start: each card keeps its natural height. Left to stretch, the
-          chart and the date readout both inflate to match the tallest cell. */}
+      {/* Hero chart beside the single next action. The pick-a-date readout
+          lives in the sidebar now, where it applies to every page. */}
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
+        <div className="lg:col-span-2">
           {hasDebts ? (
             <SnowballProjection
               debts={data.debts}
@@ -161,20 +158,6 @@ export function OverviewPage({ budget, timeMachine, onNavigate }: OverviewPagePr
               startWeek={goalStartWeek ?? 0}
             />
           )}
-          <TimeMachine
-            today={timeMachine.today}
-            dateValue={timeMachine.dateValue}
-            onDateChange={timeMachine.setDateValue}
-            targetDate={timeMachine.targetDate}
-            weeks={timeMachine.weeks}
-            balance={timeMachine.balance}
-            goalAllocation={timeMachine.goalAllocation}
-            freeBalance={timeMachine.freeBalance}
-            debtSpend={timeMachine.debtSpend}
-            hasDebts={timeMachine.hasDebts}
-            debtFreeWeek={timeMachine.debtFreeWeek}
-            debtsClearedByHorizon={timeMachine.debtsClearedByHorizon}
-          />
         </div>
         <FocusCard
           activeDebt={activeDebt}

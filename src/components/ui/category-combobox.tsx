@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Combobox } from '@base-ui/react/combobox';
 import { cn } from '@/lib/utils';
 import { ChevronDown, Check } from 'lucide-react';
@@ -9,7 +10,11 @@ interface CategoryComboboxProps {
   placeholder?: string;
   className?: string;
   'aria-label'?: string;
-  onKeyDown?: (event: React.KeyboardEvent) => void;
+  /**
+   * Runs when Enter is pressed on free text — i.e. when the user means "use
+   * what I typed" rather than "pick the item I've arrowed onto".
+   */
+  onEnter?: () => void;
 }
 
 /**
@@ -24,10 +29,20 @@ export function CategoryCombobox({
   placeholder,
   className,
   'aria-label': ariaLabel,
-  onKeyDown,
+  onEnter,
 }: CategoryComboboxProps) {
+  // Which suggestion, if any, the user has arrowed onto. Enter belongs to the
+  // list when something is highlighted, and to the typed text otherwise.
+  const highlighted = useRef<string | undefined>(undefined);
+
   return (
     <Combobox.Root
+      onItemHighlighted={(item) => {
+        highlighted.current = typeof item === 'string' ? item : undefined;
+      }}
+      onOpenChange={(open) => {
+        if (!open) highlighted.current = undefined;
+      }}
       items={items as string[]}
       // Only the text is controlled. Binding `value` as well would make every
       // keystroke read as a selection, which clears the filter query and shows
@@ -42,7 +57,20 @@ export function CategoryCombobox({
         <Combobox.Input
           placeholder={placeholder}
           aria-label={ariaLabel}
-          onKeyDown={onKeyDown}
+          // Capture phase: the popup handles Enter itself and would otherwise
+          // swallow it, leaving a typed-in category stranded in the field
+          // while every other input in the app submits on Enter.
+          onKeyDownCapture={(event) => {
+            if (event.key !== 'Enter' || !onEnter) return;
+            // Enter belongs to the list only when picking it would actually
+            // change something. Once the highlighted item is already in the
+            // field — which is the state right after choosing one — selecting
+            // it again is a no-op, and Enter has to mean "add this".
+            if (highlighted.current !== undefined && highlighted.current !== value) return;
+            event.preventDefault();
+            event.stopPropagation();
+            onEnter();
+          }}
           className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent py-1 pr-7 pl-2.5 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
         />
         <Combobox.Trigger
