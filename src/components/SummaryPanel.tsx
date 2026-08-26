@@ -21,6 +21,8 @@ interface SummaryPanelProps {
   /** What's actually spendable this week — 0 whenever a goal is still
    * absorbing the whole leftover, per the priority waterfall. */
   freeLeftover: number;
+  hasDebts: boolean;
+  debtMinimums: number;
 }
 
 export function SummaryPanel({
@@ -32,6 +34,8 @@ export function SummaryPanel({
   weeklyExpenses,
   weeklyLeftover,
   freeLeftover,
+  hasDebts,
+  debtMinimums,
 }: SummaryPanelProps) {
   const inTheRed = weeklyLeftover <= 0;
   // Distinct from overspending: every dollar is accounted for, just not
@@ -108,6 +112,15 @@ export function SummaryPanel({
             <p className="mt-1 text-lg font-semibold">{formatCurrency(weeklyExpenses)}/wk</p>
           </div>
 
+          {hasDebts && (
+            <div className="shrink-0">
+              <p className="text-xs text-muted-foreground">Debt minimums</p>
+              <p className="mt-1 text-lg font-semibold text-rose-600 dark:text-rose-400">
+                {formatCurrency(debtMinimums)}/wk
+              </p>
+            </div>
+          )}
+
           {/* Hero figure — what's actually free to spend, not the raw
               income-minus-expenses pool. The waterfall sends 100% of that
               pool to whichever goal is still unfunded, so this reads $0
@@ -130,7 +143,9 @@ export function SummaryPanel({
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Balance and leftover both fund unmet goals first, by priority.
+          {hasDebts
+            ? 'Every spare dollar goes at your debts first — see Debt vs. savings to split it.'
+            : 'Balance and leftover both fund unmet goals first, by priority.'}
         </p>
 
         {inTheRed && weeklyIncome > 0 && (
@@ -143,7 +158,9 @@ export function SummaryPanel({
 
         {isFullyCommitted && (
           <p className="text-xs text-muted-foreground">
-            {formatCurrency(weeklyLeftover)}/wk is fully committed to goals — see Goals for the breakdown.
+            {formatCurrency(weeklyLeftover)}/wk is fully committed to{' '}
+            {hasDebts ? 'debt payoff' : 'goals'} — see{' '}
+            {hasDebts ? 'Debts' : 'Goals'} for the breakdown.
           </p>
         )}
       </CardContent>

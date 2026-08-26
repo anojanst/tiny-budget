@@ -10,10 +10,11 @@ import {
   weeklyIncomeAmount,
   type GoalProgress,
 } from '@/lib/budgetMath';
-import { createEmptyBudget, type Budget, type ExpenseCategory, type Frequency, type Goal, type Income, type MoneyEntry } from '@/types/budget';
+import { simulateSnowball } from '@/lib/debtMath';
+import { createEmptyBudget, type Budget, type Debt, type ExpenseCategory, type Frequency, type Goal, type Income, type MoneyEntry } from '@/types/budget';
 
 const STORAGE_KEY = 'tiny-budget:v1';
-const CURRENT_VERSION = 4;
+const CURRENT_VERSION = 5;
 
 interface StoredBudget {
   version: typeof CURRENT_VERSION;
@@ -29,7 +30,9 @@ function isValidBudget(value: unknown): value is Budget {
     typeof income.amount === 'number' &&
     Array.isArray(b.expenses) &&
     Array.isArray(b.goals) &&
-    typeof b.currentBalance === 'number'
+    Array.isArray(b.debts) &&
+    typeof b.currentBalance === 'number' &&
+    typeof b.weeklyGoalContribution === 'number'
   );
 }
 
@@ -60,12 +63,17 @@ function migrateFromV1(value: unknown): Budget | null {
     income: { amount: weeklyTotal, frequency: 'weekly' },
     expenses: b.expenses as ExpenseCategory[],
     goals: withDefaultPriority(b.goals),
+    debts: [],
     currentBalance: 0,
+    weeklyGoalContribution: 0,
   };
 }
 
-/** v2 goals predate priority. */
-function migrateFromV2(value: unknown): Budget | null {
+/**
+ * v2 and v3 share a shape: both predate goal priority, debts, and the goal
+ * dial, and neither stored a balance anyone had actually entered.
+ */
+function migrateFromV2OrV3(value: unknown): Budget | null {
   if (!value || typeof value !== 'object') return null;
   const b = value as { income?: unknown; expenses?: unknown; goals?: unknown };
   if (!b.income || !Array.isArray(b.expenses) || !Array.isArray(b.goals)) return null;
@@ -73,20 +81,29 @@ function migrateFromV2(value: unknown): Budget | null {
     income: b.income as Income,
     expenses: b.expenses as ExpenseCategory[],
     goals: withDefaultPriority(b.goals),
+    debts: [],
     currentBalance: 0,
+    weeklyGoalContribution: 0,
   };
 }
 
-/** v3 predates a general current-balance figure — nobody had entered one, so it starts at 0. */
-function migrateFromV3(value: unknown): Budget | null {
+/**
+ * v4 predates debts. Everything it stored carries over untouched — except a
+ * negative balance, which v4 used to mean "in debt" and v5 expresses as a
+ * `debts` entry instead. There's not enough detail in a bare negative number
+ * to build a Debt from, so it clamps to 0 and the user re-enters the debt.
+ */
+function migrateFromV4(value: unknown): Budget | null {
   if (!value || typeof value !== 'object') return null;
-  const b = value as { income?: unknown; expenses?: unknown; goals?: unknown };
+  const b = value as { income?: unknown; expenses?: unknown; goals?: unknown; currentBalance?: unknown };
   if (!b.income || !Array.isArray(b.expenses) || !Array.isArray(b.goals)) return null;
   return {
     income: b.income as Income,
     expenses: b.expenses as ExpenseCategory[],
     goals: withDefaultPriority(b.goals),
-    currentBalance: 0,
+    debts: [],
+    currentBalance: Math.max(typeof b.currentBalance === 'number' ? b.currentBalance : 0, 0),
+    weeklyGoalContribution: 0,
   };
 }
 
@@ -94,8 +111,8 @@ function readBudget(value: unknown): Budget {
   if (!value || typeof value !== 'object') return createEmptyBudget();
   const s = value as { version?: unknown; budget?: unknown };
   if (s.version === CURRENT_VERSION && isValidBudget(s.budget)) return s.budget;
-  if (s.version === 3) return migrateFromV3(s.budget) ?? createEmptyBudget();
-  if (s.version === 2) return migrateFromV2(s.budget) ?? createEmptyBudget();
+  if (s.version === 4) return migrateFromV4(s.budget) ?? createEmptyBudget();
+  if (s.version === 3 || s.version === 2) return migrateFromV2OrV3(s.budget) ?? createEmptyBudget();
   if (s.version === 1) return migrateFromV1(s.budget) ?? createEmptyBudget();
   return createEmptyBudget();
 }
@@ -125,7 +142,7 @@ export function useBudget() {
 
   const setCurrentBalance = useCallback(
     (amount: number) => {
-      setBudget((prev) => ({ ...prev, currentBalance: amount }));
+      setBudget((prev) => ({ ...prev, currentBalance: Math.max(amount, 0) }));
     },
     [setBudget],
   );
@@ -181,6 +198,37 @@ export function useBudget() {
     [setBudget],
   );
 
+  const addDebt = useCallback(
+    (debt: Omit<Debt, 'id'>) => {
+      setBudget((prev) => ({ ...prev, debts: [...prev.debts, { ...debt, id: generateId() }] }));
+    },
+    [setBudget],
+  );
+
+  const updateDebt = useCallback(
+    (id: string, patch: Partial<Omit<Debt, 'id'>>) => {
+      setBudget((prev) => ({
+        ...prev,
+        debts: prev.debts.map((debt) => (debt.id === id ? { ...debt, ...patch } : debt)),
+      }));
+    },
+    [setBudget],
+  );
+
+  const removeDebt = useCallback(
+    (id: string) => {
+      setBudget((prev) => ({ ...prev, debts: prev.debts.filter((debt) => debt.id !== id) }));
+    },
+    [setBudget],
+  );
+
+  const setWeeklyGoalContribution = useCallback(
+    (amount: number) => {
+      setBudget((prev) => ({ ...prev, weeklyGoalContribution: Math.max(amount, 0) }));
+    },
+    [setBudget],
+  );
+
   const resetBudget = useCallback(() => {
     setStored({ version: CURRENT_VERSION, budget: createEmptyBudget() });
   }, [setStored]);
@@ -192,16 +240,47 @@ export function useBudget() {
     [budget.income, budget.expenses],
   );
 
+  const hasDebts = budget.debts.length > 0;
+
+  // Minimums come off the top — they're contractual, not discretionary.
+  const debtMinimums = useMemo(
+    () => budget.debts.reduce((sum, debt) => sum + Math.max(debt.minimumPayment, 0), 0),
+    [budget.debts],
+  );
+
+  // Positive means the minimums cost more than there is to spend. The snowball
+  // assumes every minimum gets paid, so past this point its projection is
+  // describing money that isn't there — callers must say so rather than show a
+  // payoff date the user can't hit.
+  const budgetShortfall = Math.max(debtMinimums - weeklyLeftover, 0);
+  const postMinimum = Math.max(weeklyLeftover - debtMinimums, 0);
+
+  // Clamped here rather than on write: a temporary income dip shouldn't quietly
+  // overwrite the figure the user chose.
+  const goalContribution = hasDebts
+    ? Math.min(Math.max(budget.weeklyGoalContribution, 0), postMinimum)
+    : weeklyLeftover;
+  const debtWeeklyExtra = hasDebts ? postMinimum - goalContribution : 0;
+
+  const snowball = useMemo(
+    () => simulateSnowball(budget.debts, debtWeeklyExtra, budget.currentBalance),
+    [budget.debts, debtWeeklyExtra, budget.currentBalance],
+  );
+
+  // Debts get the cash first; goals only see what's left after every debt is
+  // cleared. With no debts this is the whole balance, exactly as before.
+  const goalFundingBalance = hasDebts ? snowball.lumpSumRemainder : budget.currentBalance;
+
   const goalProgressById: Map<string, GoalProgress> = useMemo(
-    () => calculateGoalsProgress(budget.goals, weeklyLeftover, budget.currentBalance),
-    [budget.goals, weeklyLeftover, budget.currentBalance],
+    () => calculateGoalsProgress(budget.goals, goalContribution, goalFundingBalance),
+    [budget.goals, goalContribution, goalFundingBalance],
   );
 
   // What's actually spendable this week — $0 whenever a goal is still
   // absorbing the whole leftover, per the priority waterfall.
   const freeLeftover = useMemo(
-    () => currentFreeLeftover(budget.goals, weeklyLeftover),
-    [budget.goals, weeklyLeftover],
+    () => (hasDebts ? 0 : currentFreeLeftover(budget.goals, weeklyLeftover)),
+    [hasDebts, budget.goals, weeklyLeftover],
   );
 
   return {
@@ -211,6 +290,14 @@ export function useBudget() {
     weeklyLeftover,
     freeLeftover,
     goalProgressById,
+    hasDebts,
+    debtMinimums,
+    budgetShortfall,
+    postMinimum,
+    goalContribution,
+    debtWeeklyExtra,
+    goalFundingBalance,
+    snowball,
     setIncome,
     setCurrentBalance,
     addExpense,
@@ -219,6 +306,10 @@ export function useBudget() {
     addGoal,
     updateGoal,
     removeGoal,
+    addDebt,
+    updateDebt,
+    removeDebt,
+    setWeeklyGoalContribution,
     resetBudget,
   };
 }

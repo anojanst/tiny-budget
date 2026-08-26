@@ -28,6 +28,10 @@ export function addMonths(date: Date, months: number): Date {
   return next;
 }
 
+export function addWeeks(date: Date, weeks: number): Date {
+  return new Date(date.getTime() + weeks * MS_PER_WEEK);
+}
+
 export function weeksBetween(from: Date, to: Date): number {
   return (to.getTime() - from.getTime()) / MS_PER_WEEK;
 }

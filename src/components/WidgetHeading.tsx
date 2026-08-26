@@ -28,6 +28,10 @@ export const WIDGET_ACCENTS = {
     chip: 'bg-amber-500/15 text-amber-600 dark:bg-amber-400/15 dark:text-amber-300',
     stripe: 'border-l-amber-500 dark:border-l-amber-400',
   },
+  rose: {
+    chip: 'bg-rose-500/15 text-rose-600 dark:bg-rose-400/15 dark:text-rose-300',
+    stripe: 'border-l-rose-500 dark:border-l-rose-400',
+  },
 } as const;
 
 export type WidgetAccent = keyof typeof WIDGET_ACCENTS;

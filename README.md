@@ -1,14 +1,29 @@
 # tiny-budget
 
-A weekly budget tuner. Enter what you earn and spend, set savings goals with
-priorities, and see in real time when each goal lands — plus what your balance
-looks like at any future date.
+A weekly budget tuner for getting out of debt and building savings. Enter what
+you earn and spend, list your debts, and see exactly when you'll be debt free —
+then set savings goals for what comes after.
 
 Everything runs in the browser and persists to `localStorage`. No backend, no
 accounts, no data leaves the machine.
 
 ## Features
 
+- **Guided setup** — a five-step intake asks for income, cash on hand,
+  expenses, and debts before dropping you on the dashboard, so you're never
+  staring at an empty screen wondering where to start.
+- **Debt snowball** — the Ramsey method. Debts are ordered smallest balance
+  first (deliberately ignoring interest rate), every minimum gets paid, and
+  every spare dollar attacks the top debt. When it clears, its payment rolls
+  into the next one — the payment snowballs. Interest compounds weekly, and
+  both institutional lenders and interest-free family loans are supported.
+- **Debt-free date** — the headline number: when you're out, what interest
+  costs you, what you'll have paid in total.
+- **Debt vs. savings dial** — saving while you owe money is allowed, but never
+  silent. Move the dial and it tells you exactly how many weeks it adds to your
+  debt-free date and how much extra interest it costs. Defaults to $0.
+- **Honest about shortfalls** — if your leftover can't cover your minimum
+  payments, the app says so and refuses to project a payoff date you can't hit.
 - **Weekly-normalized budgeting** — mix weekly and monthly amounts; everything
   is converted to a common weekly basis (`52 / 12` weeks per month).
 - **Priority waterfall for goals** — give each goal a priority number (lower
@@ -53,15 +68,28 @@ npx vite preview
 ```
 src/
   lib/budgetMath.ts     pure budget + priority-waterfall math (unit tested)
+  lib/debtMath.ts       pure debt-snowball simulation (unit tested)
   lib/dates.ts          local-date parsing/formatting helpers
   hooks/useBudget.ts    persisted budget state + versioned migrations
   hooks/useTimeMachine.ts  the shared "what if I wait until X" horizon
+  hooks/useOnboarding.ts   first-run setup flag
   components/           dashboard widgets
   components/ui/        shadcn/ui primitives
 ```
 
-The math lives in `budgetMath.ts` as pure functions with no React imports, so
-the waterfall behaviour is covered by tests independently of the UI.
+Both math modules are pure functions with no React imports, so the waterfall and
+snowball behaviour are covered by tests independently of the UI.
+
+### How the money splits
+
+With no debts, nothing has changed: the weekly leftover and your balance fund
+savings goals by priority. With debts, minimums come off the top, and what's
+left is split by the dial — everything to the snowball by default. Your cash on
+hand attacks debts first, and only reaches goals once every debt is cleared.
+
+Goal math is solved in closed form because nothing compounds. Debt math is
+simulated week by week because interest does — see the header comment in
+`debtMath.ts` for why the closed-form version was rejected.
 
 ## Stack
 

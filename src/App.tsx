@@ -6,8 +6,14 @@ import { GoalsSection } from '@/components/GoalsSection';
 import { AllocationPie } from '@/components/AllocationPie';
 import { SavingsProjection } from '@/components/SavingsProjection';
 import { TimeMachine } from '@/components/TimeMachine';
+import { DebtsSection } from '@/components/DebtsSection';
+import { DebtFreeDate } from '@/components/DebtFreeDate';
+import { SnowballProjection } from '@/components/SnowballProjection';
+import { GoalDiversionDial } from '@/components/GoalDiversionDial';
+import { OnboardingWizard } from '@/components/OnboardingWizard';
 import { useBudget } from '@/hooks/useBudget';
 import { useTimeMachine } from '@/hooks/useTimeMachine';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { formatShortDate } from '@/lib/dates';
 import { PiggyBank, Receipt } from 'lucide-react';
 
@@ -19,6 +25,14 @@ function App() {
     weeklyLeftover,
     freeLeftover,
     goalProgressById,
+    hasDebts,
+    debtMinimums,
+    budgetShortfall,
+    postMinimum,
+    goalContribution,
+    debtWeeklyExtra,
+    goalFundingBalance,
+    snowball,
     setIncome,
     setCurrentBalance,
     addExpense,
@@ -27,10 +41,16 @@ function App() {
     addGoal,
     updateGoal,
     removeGoal,
+    addDebt,
+    updateDebt,
+    removeDebt,
+    setWeeklyGoalContribution,
     resetBudget,
   } = useBudget();
 
-  const timeMachine = useTimeMachine(budget.goals, weeklyLeftover, budget.currentBalance);
+  const onboarding = useOnboarding();
+
+  const timeMachine = useTimeMachine(budget.goals, goalContribution, goalFundingBalance);
   const horizonLabel = timeMachine.targetDate ? formatShortDate(timeMachine.targetDate) : undefined;
 
   // Recharts is by far the most expensive thing on the page (~50ms of render
@@ -39,15 +59,40 @@ function App() {
   // priority, so a fast typist never waits on chart layout.
   const chartExpenses = useDeferredValue(budget.expenses);
   const chartGoals = useDeferredValue(budget.goals);
+  const chartDebts = useDeferredValue(budget.debts);
   const chartWeeklyIncome = useDeferredValue(weeklyIncome);
   const chartWeeklyLeftover = useDeferredValue(weeklyLeftover);
+  const chartGoalContribution = useDeferredValue(goalContribution);
+  const chartDebtExtra = useDeferredValue(debtWeeklyExtra);
+  const chartGoalBalance = useDeferredValue(goalFundingBalance);
   const chartCurrentBalance = useDeferredValue(budget.currentBalance);
 
   const handleNewBudget = () => {
     if (window.confirm('Start a new budget? This clears all current data.')) {
       resetBudget();
+      onboarding.restart();
     }
   };
+
+  if (!onboarding.completed) {
+    return (
+      <OnboardingWizard
+        income={budget.income}
+        onIncomeChange={setIncome}
+        currentBalance={budget.currentBalance}
+        onCurrentBalanceChange={setCurrentBalance}
+        expenses={budget.expenses}
+        onAddExpense={addExpense}
+        onRemoveExpense={removeExpense}
+        debts={budget.debts}
+        onAddDebt={addDebt}
+        onRemoveDebt={removeDebt}
+        onDone={onboarding.complete}
+      />
+    );
+  }
+
+  const totalOwed = budget.debts.reduce((sum, debt) => sum + Math.max(debt.balance, 0), 0);
 
   return (
     /* Below xl the page scrolls normally. At xl+ the shell is pinned to the
@@ -71,9 +116,8 @@ function App() {
         </Button>
       </div>
 
-      {/* Top row: where you stand now, beside where you'd stand later. */}
-      {/* items-start: each card keeps its own natural height instead of both
-          stretching to match whichever has more content that day. */}
+      {/* Top row: where you stand now, beside where you'd stand later. In debt,
+          "later" is the debt-free date — that's the number that matters. */}
       <div className="mb-4 grid shrink-0 grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <SummaryPanel
           income={budget.income}
@@ -84,17 +128,28 @@ function App() {
           weeklyExpenses={weeklyExpenses}
           weeklyLeftover={weeklyLeftover}
           freeLeftover={freeLeftover}
+          hasDebts={hasDebts}
+          debtMinimums={debtMinimums}
         />
-        <TimeMachine
-          today={timeMachine.today}
-          dateValue={timeMachine.dateValue}
-          onDateChange={timeMachine.setDateValue}
-          targetDate={timeMachine.targetDate}
-          weeks={timeMachine.weeks}
-          balance={timeMachine.balance}
-          goalAllocation={timeMachine.goalAllocation}
-          freeBalance={timeMachine.freeBalance}
-        />
+        {hasDebts ? (
+          <DebtFreeDate
+            snowball={snowball}
+            today={timeMachine.today}
+            totalOwed={totalOwed}
+            budgetShortfall={budgetShortfall}
+          />
+        ) : (
+          <TimeMachine
+            today={timeMachine.today}
+            dateValue={timeMachine.dateValue}
+            onDateChange={timeMachine.setDateValue}
+            targetDate={timeMachine.targetDate}
+            weeks={timeMachine.weeks}
+            balance={timeMachine.balance}
+            goalAllocation={timeMachine.goalAllocation}
+            freeBalance={timeMachine.freeBalance}
+          />
+        )}
       </div>
 
       {/* Two body rows at xl: inputs on the left, insights on the right, goals
@@ -119,33 +174,80 @@ function App() {
           />
         </div>
 
-        <AllocationPie
-          expenses={chartExpenses}
-          weeklyIncome={chartWeeklyIncome}
-          weeklyLeftover={chartWeeklyLeftover}
-        />
+        {/* In debt, the payoff curve and the split dial replace the pie and the
+            savings projection — the snowball is the story worth telling. */}
+        {hasDebts ? (
+          <>
+            <div className="h-full min-h-0">
+              <SnowballProjection
+                debts={chartDebts}
+                weeklyExtra={chartDebtExtra}
+                currentBalance={chartCurrentBalance}
+              />
+            </div>
+            <GoalDiversionDial
+              debts={chartDebts}
+              postMinimum={postMinimum}
+              goalContribution={goalContribution}
+              currentBalance={chartCurrentBalance}
+              budgetShortfall={budgetShortfall}
+              onChange={setWeeklyGoalContribution}
+            />
+            <div className="h-full min-h-0 xl:col-start-3 xl:row-span-2 xl:row-start-1">
+              <DebtsSection
+                debts={budget.debts}
+                snowball={snowball}
+                debtMinimums={debtMinimums}
+                onAdd={addDebt}
+                onUpdate={updateDebt}
+                onRemove={removeDebt}
+              />
+            </div>
+            {/* Goals stay reachable while in debt — funded only by whatever the
+                dial diverts, which is $0 unless the user moves it. */}
+            <div className="h-full min-h-0 xl:col-start-2 xl:row-start-2">
+              <GoalsSection
+                goals={budget.goals}
+                goalProgressById={goalProgressById}
+                projectionById={timeMachine.projectionById}
+                horizonLabel={horizonLabel}
+                onAdd={addGoal}
+                onUpdate={updateGoal}
+                onRemove={removeGoal}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <AllocationPie
+              expenses={chartExpenses}
+              weeklyIncome={chartWeeklyIncome}
+              weeklyLeftover={chartWeeklyLeftover}
+            />
 
-        <div className="h-full min-h-0">
-          <SavingsProjection
-            goals={chartGoals}
-            weeklyLeftover={chartWeeklyLeftover}
-            currentBalance={chartCurrentBalance}
-          />
-        </div>
+            <div className="h-full min-h-0">
+              <SavingsProjection
+                goals={chartGoals}
+                weeklyLeftover={chartGoalContribution}
+                currentBalance={chartGoalBalance}
+              />
+            </div>
 
-        {/* Parked in the third column so the other widgets fill columns 1–2
-            in reading order. */}
-        <div className="h-full min-h-0 xl:col-start-3 xl:row-span-2 xl:row-start-1">
-          <GoalsSection
-            goals={budget.goals}
-            goalProgressById={goalProgressById}
-            projectionById={timeMachine.projectionById}
-            horizonLabel={horizonLabel}
-            onAdd={addGoal}
-            onUpdate={updateGoal}
-            onRemove={removeGoal}
-          />
-        </div>
+            {/* Parked in the third column so the other widgets fill columns 1–2
+                in reading order. */}
+            <div className="h-full min-h-0 xl:col-start-3 xl:row-span-2 xl:row-start-1">
+              <GoalsSection
+                goals={budget.goals}
+                goalProgressById={goalProgressById}
+                projectionById={timeMachine.projectionById}
+                horizonLabel={horizonLabel}
+                onAdd={addGoal}
+                onUpdate={updateGoal}
+                onRemove={removeGoal}
+              />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
