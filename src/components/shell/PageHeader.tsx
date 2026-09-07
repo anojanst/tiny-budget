@@ -14,7 +14,13 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+      {/* `shrink-0` keeps the actions off the title's line-wrapping, but on its
+          own it also sizes this to max-content, so a wide action group can
+          never wrap and pushes the page sideways instead. `max-w-full` puts a
+          ceiling back on it. */}
+      {actions && (
+        <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">{actions}</div>
+      )}
     </div>
   );
 }

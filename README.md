@@ -21,6 +21,9 @@ so the calendar is the app — everything else exists to feed it.
   the balance you're left holding once the bills in between have gone out, and
   any day that goes negative is flagged before you get there. The lowest point
   of the month is called out, because that is the number that actually bites.
+  It runs five years ahead — far enough to watch a car loan or a fixed-term
+  contract reach its end date — with month and year pickers so getting there
+  is two clicks rather than sixty.
 - **Several income streams** — two jobs, a partner's wage, a rental. Each has
   its own cycle and its own payday, and each is named on the calendar so you
   can see which money landed.

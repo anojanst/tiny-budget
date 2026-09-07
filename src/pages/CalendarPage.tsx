@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageHeader } from '@/components/shell/PageHeader';
 import { StatCard } from '@/components/StatCard';
 import { OneOffSection } from '@/components/OneOffSection';
+import { MonthYearSelect } from '@/components/ui/month-year-select';
 import { buildCashflowDays } from '@/lib/calendar';
 import { formatCurrency } from '@/lib/format';
 import {
@@ -23,6 +24,20 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+/**
+ * How far ahead the projection will run, in months.
+ *
+ * Five years is enough to see a car loan or a fixed-term contract out to its
+ * end date, which is the point of having end dates at all. It costs nothing to
+ * compute — the projection is one pass over about 1,800 days — but it does
+ * need a way to get there that isn't sixty clicks, hence the pickers.
+ */
+const MAX_MONTHS = 60;
+
+const MONTH_NAMES = Array.from({ length: 12 }, (_, month) =>
+  new Date(2000, month, 1).toLocaleDateString(undefined, { month: 'long' }),
+);
+
 interface CalendarPageProps {
   budget: ReturnType<typeof useBudget>;
   onNavigate: (route: Route) => void;
@@ -33,6 +48,36 @@ export function CalendarPage({ budget, onNavigate }: CalendarPageProps) {
   const [monthOffset, setMonthOffset] = useState(0);
 
   const visibleMonth = useMemo(() => addMonths(startOfMonth(today), monthOffset), [today, monthOffset]);
+
+  // The pickers work in absolute months and the projection works in an offset
+  // from today, so one conversion sits between them.
+  const baseMonth = useMemo(() => startOfMonth(today), [today]);
+  const offsetFor = (year: number, month: number) =>
+    (year - baseMonth.getFullYear()) * 12 + (month - baseMonth.getMonth());
+  const inRange = (offset: number) => offset >= 0 && offset <= MAX_MONTHS;
+  const goTo = (year: number, month: number) => {
+    const next = offsetFor(year, month);
+    if (inRange(next)) setMonthOffset(next);
+  };
+
+  const years = useMemo(() => {
+    const first = baseMonth.getFullYear();
+    const last = addMonths(baseMonth, MAX_MONTHS).getFullYear();
+    return Array.from({ length: last - first + 1 }, (_, i) => ({
+      value: first + i,
+      label: String(first + i),
+    }));
+  }, [baseMonth]);
+
+  // Twelve entries; not worth memoizing, and doing so would only invite a
+  // stale dependency on the two closures above.
+  const monthOptions = MONTH_NAMES.map((label, month) => ({
+    value: month,
+    label,
+    // Months outside the horizon stay listed but unpickable, so the list is
+    // the same twelve rows every year rather than a shifting stub.
+    disabled: !inRange(offsetFor(visibleMonth.getFullYear(), month)),
+  }));
 
   // Always projected from today, however far ahead the view is scrolled — a
   // balance is only meaningful as the running total of everything before it.
@@ -97,32 +142,55 @@ export function CalendarPage({ budget, onNavigate }: CalendarPageProps) {
         title={formatMonthYear(visibleMonth)}
         subtitle="What lands when, and what you're left holding after it does."
         actions={
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="icon-sm"
-              aria-label="Previous month"
-              disabled={monthOffset === 0}
-              onClick={() => setMonthOffset((m) => Math.max(m - 1, 0))}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setMonthOffset(0)}
-              disabled={monthOffset === 0}
-            >
-              Today
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              aria-label="Next month"
-              onClick={() => setMonthOffset((m) => Math.min(m + 1, 24))}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <MonthYearSelect
+              aria-label="Month"
+              value={visibleMonth.getMonth()}
+              options={monthOptions}
+              onValueChange={(month) => goTo(visibleMonth.getFullYear(), month)}
+              className="w-32"
+            />
+            <MonthYearSelect
+              aria-label="Year"
+              value={visibleMonth.getFullYear()}
+              options={years}
+              onValueChange={(year) => {
+                // Jumping to a year lands on the nearest month that exists in
+                // it, so picking this year from December doesn't dead-end on a
+                // month that has already been and gone.
+                const wanted = offsetFor(year, visibleMonth.getMonth());
+                setMonthOffset(Math.min(Math.max(wanted, 0), MAX_MONTHS));
+              }}
+              className="w-24"
+            />
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label="Previous month"
+                disabled={monthOffset === 0}
+                onClick={() => setMonthOffset((m) => Math.max(m - 1, 0))}
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label="Next month"
+                disabled={monthOffset === MAX_MONTHS}
+                onClick={() => setMonthOffset((m) => Math.min(m + 1, MAX_MONTHS))}
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMonthOffset(0)}
+                disabled={monthOffset === 0}
+              >
+                Today
+              </Button>
+            </div>
           </div>
         }
       />
