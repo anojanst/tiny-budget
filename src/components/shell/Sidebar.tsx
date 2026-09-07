@@ -7,6 +7,7 @@ import {
   Wallet,
   Target,
   Settings,
+  CalendarDays,
   PiggyBank,
   type LucideIcon,
 } from 'lucide-react';
@@ -55,6 +56,7 @@ export function Sidebar({
       icon: Target,
       badge: goalCount > 0 ? String(goalCount) : undefined,
     },
+    { route: 'calendar', label: 'Calendar', icon: CalendarDays },
   ];
 
   const general: NavItem[] = [{ route: 'settings', label: 'Settings', icon: Settings }];

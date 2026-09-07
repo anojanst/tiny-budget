@@ -9,6 +9,7 @@ import { OverviewPage } from '@/pages/OverviewPage';
 import { DebtsPage } from '@/pages/DebtsPage';
 import { BudgetPage } from '@/pages/BudgetPage';
 import { GoalsPage } from '@/pages/GoalsPage';
+import { CalendarPage } from '@/pages/CalendarPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { useBudget } from '@/hooks/useBudget';
 import { useTimeMachine } from '@/hooks/useTimeMachine';
@@ -125,6 +126,7 @@ function App() {
           {route === 'debts' && <DebtsPage budget={budget} today={timeMachine.today} />}
           {route === 'budget' && <BudgetPage budget={budget} />}
           {route === 'goals' && <GoalsPage budget={budget} timeMachine={timeMachine} />}
+          {route === 'calendar' && <CalendarPage budget={budget} />}
           {route === 'settings' && (
             <SettingsPage
               onNewBudget={() => setConfirmingReset(true)}

@@ -30,6 +30,12 @@ export type ExpenseCategory = MoneyEntry;
 export interface Income {
   amount: number;
   frequency: Frequency;
+  /**
+   * Optional anchor for the pay cycle, as a `yyyy-mm-dd` local date. Only the
+   * calendar needs it — every weekly figure elsewhere is rate-based and does
+   * not care which day the money lands.
+   */
+  nextPayday?: string;
 }
 
 export interface Goal {

@@ -57,6 +57,12 @@ accounts, no data leaves the machine.
   goal is funded, which is the point.
 - **Time machine** — pick any future date and see the projected balance, split
   into what's free vs. what's committed to goals.
+- **Cash calendar** — a month grid of what lands when. Set your next payday and
+  every pay is marked with the balance you're left holding once the bills in
+  between have gone out. This is a *dated cashflow* rather than the weekly
+  rates the rest of the app uses: a budget that balances on average can still
+  leave you short the week a half-yearly premium arrives, and only a calendar
+  shows that. Days that go negative are flagged.
 - **Live charts** — a pie of where income goes, and a stacked-area projection
   where each goal is its own band that visibly flattens the week it's funded.
 

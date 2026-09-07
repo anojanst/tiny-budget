@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
  * back/forward and shareable links in about twenty lines, with no dependency
  * and no server-side rewrite to configure for a static build.
  */
-export const ROUTES = ['overview', 'debts', 'budget', 'goals', 'settings'] as const;
+export const ROUTES = ['overview', 'debts', 'budget', 'goals', 'calendar', 'settings'] as const;
 
 export type Route = (typeof ROUTES)[number];
 

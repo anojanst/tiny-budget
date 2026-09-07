@@ -8,6 +8,33 @@ export function startOfToday(): Date {
   return d;
 }
 
+/** Midnight local on the same calendar day, so date maths can't drift by hours. */
+export function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+/** First day of the month containing `date`. */
+export function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+/** Last day of the month containing `date`. */
+export function endOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+}
+
+export function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+export function formatMonthYear(date: Date): string {
+  return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+}
+
 /**
  * Parses a native date-input value as a LOCAL date. `new Date('2026-08-06')`
  * would read it as UTC midnight, which lands on the previous day west of GMT.
