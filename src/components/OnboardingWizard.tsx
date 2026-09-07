@@ -3,7 +3,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { FrequencySelect } from '@/components/ui/frequency-select';
 import { CategoryCombobox } from '@/components/ui/category-combobox';
 import { EXPENSE_CATEGORIES } from '@/lib/expenseCategories';
 import { formatCurrency } from '@/lib/format';
@@ -115,16 +115,12 @@ export function OnboardingWizard({
                   autoFocus
                   aria-label="Household income"
                 />
-                <ToggleGroup
-                  value={[income.frequency]}
-                  onValueChange={(value) => {
-                    if (value[0]) onIncomeChange({ frequency: value[0] as Frequency });
-                  }}
-                  variant="outline"
-                >
-                  <ToggleGroupItem value="weekly">Weekly</ToggleGroupItem>
-                  <ToggleGroupItem value="monthly">Monthly</ToggleGroupItem>
-                </ToggleGroup>
+                <FrequencySelect
+                  value={income.frequency}
+                  onValueChange={(frequency: Frequency) => onIncomeChange({ frequency })}
+                  aria-label="How often you are paid"
+                  className="w-28"
+                />
               </div>
             </>
           )}
@@ -180,17 +176,12 @@ export function OnboardingWizard({
                   className="w-24"
                   onKeyDown={(e) => e.key === 'Enter' && handleAddExpense()}
                 />
-                <ToggleGroup
-                  value={[expenseFrequency]}
-                  onValueChange={(value) => {
-                    if (value[0]) setExpenseFrequency(value[0] as Frequency);
-                  }}
-                  variant="outline"
-                  size="sm"
-                >
-                  <ToggleGroupItem value="weekly">Weekly</ToggleGroupItem>
-                  <ToggleGroupItem value="monthly">Monthly</ToggleGroupItem>
-                </ToggleGroup>
+                <FrequencySelect
+                  value={expenseFrequency}
+                  onValueChange={setExpenseFrequency}
+                  aria-label="How often the expense is due"
+                  className="w-28"
+                />
                 <Button size="sm" onClick={handleAddExpense}>
                   Add
                 </Button>

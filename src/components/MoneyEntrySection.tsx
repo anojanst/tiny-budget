@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Separator } from '@/components/ui/separator';
 import { MoneyEntryRow } from '@/components/MoneyEntryRow';
 import { CategoryCombobox } from '@/components/ui/category-combobox';
+import { FrequencySelect } from '@/components/ui/frequency-select';
 import { WidgetHeading } from '@/components/WidgetHeading';
 import { EXPENSE_CATEGORIES } from '@/lib/expenseCategories';
 import { formatCurrency } from '@/lib/format';
@@ -17,6 +17,7 @@ interface MoneyEntrySectionProps {
   description?: string;
   emptyLabel: string;
   entries: MoneyEntry[];
+  today: Date;
   weeklyTotal: number;
   onAdd: (name: string, amount: number, frequency: Frequency) => void;
   onUpdate: (id: string, patch: Partial<Omit<MoneyEntry, 'id'>>) => void;
@@ -28,6 +29,7 @@ export function MoneyEntrySection({
   description,
   emptyLabel,
   entries,
+  today,
   weeklyTotal,
   onAdd,
   onUpdate,
@@ -74,7 +76,7 @@ export function MoneyEntrySection({
                   {slice.map((entry, index) => (
                     <div key={entry.id}>
                       {index > 0 && <Separator />}
-                      <MoneyEntryRow entry={entry} onUpdate={onUpdate} onRemove={onRemove} />
+                      <MoneyEntryRow entry={entry} today={today} onUpdate={onUpdate} onRemove={onRemove} />
                     </div>
                   ))}
                 </div>
@@ -104,17 +106,12 @@ export function MoneyEntrySection({
           className="w-24"
           onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
         />
-        <ToggleGroup
-          value={[frequency]}
-          onValueChange={(value) => {
-            if (value[0]) setFrequency(value[0] as Frequency);
-          }}
-          variant="outline"
-          size="sm"
-        >
-          <ToggleGroupItem value="weekly">Weekly</ToggleGroupItem>
-          <ToggleGroupItem value="monthly">Monthly</ToggleGroupItem>
-        </ToggleGroup>
+        <FrequencySelect
+          value={frequency}
+          onValueChange={setFrequency}
+          aria-label="How often the new expense is due"
+          className="w-24"
+        />
         <Button size="sm" onClick={handleAdd}>
           <Plus className="size-4" />
           Add

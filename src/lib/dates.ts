@@ -1,3 +1,5 @@
+import type { Frequency } from '@/types/budget';
+
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 
 export function startOfToday(): Date {
@@ -26,6 +28,38 @@ export function addMonths(date: Date, months: number): Date {
   const next = new Date(date);
   next.setMonth(next.getMonth() + months);
   return next;
+}
+
+export function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+/**
+ * Advances a date by whole billing cycles. Month-based cycles step by months
+ * rather than by weeks so a bill due on the 15th stays on the 15th instead of
+ * drifting backwards through the calendar.
+ */
+export function advanceByFrequency(
+  date: Date,
+  frequency: Frequency,
+  cycles: number,
+): Date {
+  switch (frequency) {
+    case 'weekly':
+      return addDays(date, 7 * cycles);
+    case 'fortnightly':
+      return addDays(date, 14 * cycles);
+    case 'monthly':
+      return addMonths(date, cycles);
+    case 'quarterly':
+      return addMonths(date, 3 * cycles);
+    case 'biannual':
+      return addMonths(date, 6 * cycles);
+    case 'annual':
+      return addMonths(date, 12 * cycles);
+  }
 }
 
 export function addWeeks(date: Date, weeks: number): Date {

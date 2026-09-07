@@ -4,7 +4,7 @@ import { generateId } from '@/lib/id';
 import {
   calculateGoalsProgress,
   currentFreeLeftover,
-  calculateWeeklyLeftover,
+  isEntryActive,
   sumWeekly,
   toWeeklyAmount,
   weeklyIncomeAmount,
@@ -12,6 +12,7 @@ import {
   type GoalProgress,
 } from '@/lib/budgetMath';
 import { simulateSnowball } from '@/lib/debtMath';
+import { startOfToday } from '@/lib/dates';
 import { createEmptyBudget, type Budget, type Debt, type ExpenseCategory, type Frequency, type Goal, type Income, type MoneyEntry, type NamedBudget } from '@/types/budget';
 
 const STORAGE_KEY = 'tiny-budget:v1';
@@ -495,11 +496,21 @@ export function useBudget() {
     [setStored],
   );
 
+  // Recomputed once per mount: a commitment that ended yesterday should stop
+  // being reserved, and nothing here needs to react mid-session.
+  const today = useMemo(() => startOfToday(), []);
+
+  /** Only commitments still owed. An ended one would inflate the budget forever. */
+  const activeExpenses = useMemo(
+    () => budget.expenses.filter((entry) => isEntryActive(entry, today)),
+    [budget.expenses, today],
+  );
+
   const weeklyIncome = useMemo(() => weeklyIncomeAmount(budget.income), [budget.income]);
-  const weeklyExpenses = useMemo(() => sumWeekly(budget.expenses), [budget.expenses]);
+  const weeklyExpenses = useMemo(() => sumWeekly(activeExpenses), [activeExpenses]);
   const weeklyLeftover = useMemo(
-    () => calculateWeeklyLeftover(budget.income, budget.expenses),
-    [budget.income, budget.expenses],
+    () => weeklyIncomeAmount(budget.income) - sumWeekly(activeExpenses),
+    [budget.income, activeExpenses],
   );
 
   // "Has debts" means money is still owed, not that rows exist. A list of
@@ -580,6 +591,8 @@ export function useBudget() {
     weeklyIncome,
     weeklyExpenses,
     weeklyLeftover,
+    activeExpenses,
+    today,
     freeLeftover,
     goalProgressById,
     hasDebts,

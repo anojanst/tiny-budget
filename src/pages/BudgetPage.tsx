@@ -15,6 +15,8 @@ export function BudgetPage({ budget }: BudgetPageProps) {
     weeklyIncome,
     weeklyExpenses,
     weeklyLeftover,
+    activeExpenses,
+    today,
     hasDebts,
     debtMinimums,
     setIncome,
@@ -64,6 +66,7 @@ export function BudgetPage({ budget }: BudgetPageProps) {
           description="Mix weekly and monthly — everything is normalised to a weekly figure."
           emptyLabel="No expenses yet — add one below."
           entries={data.expenses}
+        today={today}
           weeklyTotal={weeklyExpenses}
           onAdd={addExpense}
           onUpdate={updateExpense}
@@ -71,7 +74,7 @@ export function BudgetPage({ budget }: BudgetPageProps) {
         />
 
         <AllocationPie
-          expenses={data.expenses}
+          expenses={activeExpenses}
           weeklyIncome={weeklyIncome}
           weeklyLeftover={weeklyLeftover}
         />

@@ -1,10 +1,27 @@
-export type Frequency = 'weekly' | 'monthly';
+export type Frequency =
+  | 'weekly'
+  | 'fortnightly'
+  | 'monthly'
+  | 'quarterly'
+  | 'biannual'
+  | 'annual';
 
 export interface MoneyEntry {
   id: string;
   name: string;
   amount: number;
   frequency: Frequency;
+  /**
+   * Optional: when the next instance falls due. Display only — it rolls
+   * forward on its own so a stale date never has to be maintained by hand.
+   */
+  nextDue?: string;
+  /**
+   * Optional: the last date this is owed. Past it, the entry stops counting
+   * toward weekly expenses — a loan-linked insurance or a fixed-term fee
+   * shouldn't inflate the budget forever.
+   */
+  endDate?: string;
 }
 
 export type ExpenseCategory = MoneyEntry;

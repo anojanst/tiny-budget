@@ -2,7 +2,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { FrequencySelect } from '@/components/ui/frequency-select';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Frequency, Income } from '@/types/budget';
@@ -54,17 +54,12 @@ export function IncomeCard({
               onChange={(e) => onIncomeChange({ amount: e.target.valueAsNumber || 0 })}
               className="w-28"
             />
-            <ToggleGroup
-              value={[income.frequency]}
-              onValueChange={(value) => {
-                if (value[0]) onIncomeChange({ frequency: value[0] as Frequency });
-              }}
-              variant="outline"
-              size="sm"
-            >
-              <ToggleGroupItem value="weekly">Weekly</ToggleGroupItem>
-              <ToggleGroupItem value="monthly">Monthly</ToggleGroupItem>
-            </ToggleGroup>
+            <FrequencySelect
+              value={income.frequency}
+              onValueChange={(frequency: Frequency) => onIncomeChange({ frequency })}
+              aria-label="How often you are paid"
+              className="w-24"
+            />
           </div>
         </div>
 

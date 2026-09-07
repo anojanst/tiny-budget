@@ -40,8 +40,14 @@ accounts, no data leaves the machine.
   another browser. Importing opens the file as an *additional* budget, so it
   never overwrites what you already have. Exports from older versions still
   open; they're migrated on the way in.
-- **Weekly-normalized budgeting** — mix weekly and monthly amounts; everything
-  is converted to a common weekly basis (`52 / 12` weeks per month).
+- **Weekly-normalized budgeting** — mix weekly, fortnightly, monthly,
+  quarterly, half-yearly and annual amounts; everything converts to a common
+  weekly basis (`52 / 12` weeks per month).
+- **Recurring bills are reserved, not saved for** — a $600 half-yearly
+  insurance is $23.08/wk taken off the top, *before* debts and goals, because
+  money you're contractually required to pay isn't spare. Quarterly and longer
+  cycles also take an optional next-due date (which rolls forward on its own)
+  and an end date, after which they stop counting.
 - **Priority waterfall for goals** — give each goal a priority number (lower
   funds first). Goals sharing a number split the leftover evenly; a tier only
   starts receiving money once every goal ahead of it is fully funded, and a
