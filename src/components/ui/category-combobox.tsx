@@ -48,7 +48,19 @@ export function CategoryCombobox({
       // keystroke read as a selection, which clears the filter query and shows
       // the full list no matter what has been typed.
       inputValue={value}
-      onInputValueChange={onValueChange}
+      onInputValueChange={(next, details) => {
+        // Base UI is a "must resolve to an item" control by default: when the
+        // popup closes it syncs the field back to the *selected* value, which
+        // is always empty here because free text is never a selection. That
+        // wipes what was typed the instant focus moves to the amount box —
+        // see `handleUnmount` in AriaCombobox, which runs after the popup's
+        // exit transition. This field is a
+        // text input that offers suggestions, so keeping the text is the whole
+        // point. Typing and deleting report `input-change`, so ignoring this
+        // one reason costs nothing.
+        if (details.reason === 'input-clear') return;
+        onValueChange(next);
+      }}
       onValueChange={(next) => {
         if (typeof next === 'string') onValueChange(next);
       }}
