@@ -7,13 +7,24 @@ import { MoneyEntryRow } from '@/components/MoneyEntryRow';
 import { CategoryCombobox } from '@/components/ui/category-combobox';
 import { FrequencySelect } from '@/components/ui/frequency-select';
 import { WidgetHeading } from '@/components/WidgetHeading';
-import { EXPENSE_CATEGORIES } from '@/lib/expenseCategories';
+
 import { formatCurrency } from '@/lib/format';
 import type { Frequency, MoneyEntry } from '@/types/budget';
 import { Plus } from 'lucide-react';
 
 interface MoneyEntrySectionProps {
   title: string;
+  /** Name suggestions for the combobox. Free text is always accepted. */
+  categories: readonly string[];
+  /** Used in the add row's labels, e.g. "expense" or "income stream". */
+  noun: string;
+  /**
+   * Expenses run to twenty-odd rows and need two columns to stay above the
+   * fold. Pay streams rarely pass three, where a second column reads as a
+   * mistake.
+   */
+  singleColumn?: boolean;
+  defaultFrequency?: Frequency;
   description?: string;
   emptyLabel: string;
   entries: MoneyEntry[];
@@ -26,6 +37,10 @@ interface MoneyEntrySectionProps {
 
 export function MoneyEntrySection({
   title,
+  categories,
+  noun,
+  singleColumn = false,
+  defaultFrequency = 'monthly',
   description,
   emptyLabel,
   entries,
@@ -37,7 +52,7 @@ export function MoneyEntrySection({
 }: MoneyEntrySectionProps) {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
-  const [frequency, setFrequency] = useState<Frequency>('monthly');
+  const [frequency, setFrequency] = useState<Frequency>(defaultFrequency);
 
   const handleAdd = () => {
     const parsedAmount = Number(amount);
@@ -66,9 +81,15 @@ export function MoneyEntrySection({
           /* Two columns from md up: a real budget runs past twenty categories,
              and a single column pushes most of them below the fold. The column
              rule stands in for the per-row separators a single list used. */
-          <div className="grid grid-cols-1 gap-x-8 md:grid-cols-2 md:divide-x md:divide-border">
-            {[0, 1].map((column) => {
-              const half = Math.ceil(entries.length / 2);
+          <div
+            className={
+              singleColumn
+                ? 'grid grid-cols-1'
+                : 'grid grid-cols-1 gap-x-8 md:grid-cols-2 md:divide-x md:divide-border'
+            }
+          >
+            {(singleColumn ? [0] : [0, 1]).map((column) => {
+              const half = singleColumn ? entries.length : Math.ceil(entries.length / 2);
               const slice = column === 0 ? entries.slice(0, half) : entries.slice(half);
               if (slice.length === 0) return null;
               return (
@@ -76,7 +97,13 @@ export function MoneyEntrySection({
                   {slice.map((entry, index) => (
                     <div key={entry.id}>
                       {index > 0 && <Separator />}
-                      <MoneyEntryRow entry={entry} today={today} onUpdate={onUpdate} onRemove={onRemove} />
+                      <MoneyEntryRow
+                        entry={entry}
+                        today={today}
+                        categories={categories}
+                        onUpdate={onUpdate}
+                        onRemove={onRemove}
+                      />
                     </div>
                   ))}
                 </div>
@@ -90,9 +117,9 @@ export function MoneyEntrySection({
         <CategoryCombobox
           value={name}
           onValueChange={setName}
-          items={EXPENSE_CATEGORIES}
+          items={categories}
           placeholder="Name"
-          aria-label="New expense name"
+          aria-label={`New ${noun} name`}
           className="min-w-28 flex-1"
           onEnter={handleAdd}
         />
@@ -109,7 +136,7 @@ export function MoneyEntrySection({
         <FrequencySelect
           value={frequency}
           onValueChange={setFrequency}
-          aria-label="How often the new expense is due"
+          aria-label={`How often the new ${noun} arrives`}
           className="w-24"
         />
         <Button size="sm" onClick={handleAdd}>

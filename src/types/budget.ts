@@ -6,80 +6,53 @@ export type Frequency =
   | 'biannual'
   | 'annual';
 
+/**
+ * A recurring amount on a cycle — money in or money out.
+ *
+ * Income and expenses share this shape deliberately. A paycheck and a rent
+ * payment are the same four facts (what it's called, how much, how often, when
+ * next), differing only in which way the money goes, and the direction is
+ * carried by which list it sits in. Sharing the type means the calendar's
+ * recurrence logic is written once and both sides get dates, end dates and
+ * roll-forward for free.
+ */
 export interface MoneyEntry {
   id: string;
   name: string;
   amount: number;
   frequency: Frequency;
   /**
-   * Optional: when the next instance falls due. Display only — it rolls
-   * forward on its own so a stale date never has to be maintained by hand.
+   * Optional: when the next instance falls due — payday for income, the due
+   * date for a bill. Without it the calendar can't place the money on a day,
+   * so it spreads the amount evenly instead. Rolls forward on its own, so a
+   * stale date never has to be maintained by hand.
    */
   nextDue?: string;
   /**
-   * Optional: the last date this is owed. Past it, the entry stops counting
-   * toward weekly expenses — a loan-linked insurance or a fixed-term fee
-   * shouldn't inflate the budget forever.
+   * Optional: the last date this runs. Past it the entry stops counting — a
+   * contract ending, a loan's final payment, a job finishing.
    */
   endDate?: string;
 }
 
 export type ExpenseCategory = MoneyEntry;
 
-/** A single figure — most people have one paycheck, so it needs no id or name. */
-export interface Income {
-  amount: number;
-  frequency: Frequency;
-  /**
-   * Optional anchor for the pay cycle, as a `yyyy-mm-dd` local date. Only the
-   * calendar needs it — every weekly figure elsewhere is rate-based and does
-   * not care which day the money lands.
-   */
-  nextPayday?: string;
-}
-
-export interface Goal {
-  id: string;
-  name: string;
-  targetAmount: number;
-  currentSaved: number;
-  /** Lower funds first, starting at 1. Goals sharing a number split the leftover. */
-  priority: number;
-  /**
-   * Optional deadline, as a `yyyy-mm-dd` local date.
-   *
-   * Deliberately does *not* affect funding order. A dated goal isn't
-   * necessarily an important one — a nice-to-have repair can carry a tighter
-   * date than an emergency fund — so ordering stays under the user's control
-   * and the date is used to check the plan against reality instead.
-   */
-  targetDate?: string;
-}
-
 /**
- * Two numbers, deliberately. Interest isn't modelled: a real minimum payment
- * already covers the interest by construction, so treating the balance as a
- * fixed amount to pay down keeps the projection honest without asking anyone
- * to hunt down an APR they probably can't find.
+ * A pay stream. Structurally an expense that arrives instead of leaving —
+ * see `MoneyEntry`. There can be several: two jobs, a partner's wage, a
+ * rental, each on its own cycle and its own payday.
  */
-export interface Debt {
-  id: string;
-  name: string;
-  balance: number;
-  /** Can be 0 — typical for an informal loan with no agreed schedule. */
-  minimumPayment: number;
-}
+export type IncomeStream = MoneyEntry;
 
 /**
  * A single dated movement of money — a headphone bought this month, a tax
  * refund landing next week.
  *
- * Deliberately not an expense, an income, or a goal. Those are all *rates*:
- * they recur, so they earn a weekly figure and shift what's spare from now
- * until forever. A one-off is a single event that moves cash on one day and is
- * then over, so it must not touch any weekly figure — a bonus that arrives
- * once shouldn't read as a permanent pay rise any more than a one-time
- * purchase should read as a permanent bill.
+ * The difference from a `MoneyEntry` is that it happens once. A recurring
+ * amount shifts what's spare from now until forever; a one-off moves cash on
+ * one day and is then over, so it must not touch any weekly figure — a bonus
+ * that arrives once shouldn't read as a permanent pay rise any more than a
+ * one-time purchase should read as a permanent bill.
  */
 export interface OneOff {
   id: string;
@@ -95,16 +68,12 @@ export interface OneOff {
 export type OneOffDirection = 'in' | 'out';
 
 export interface Budget {
-  income: Income;
+  /** Every pay stream. Empty is valid — a budget can be all outgoings. */
+  incomes: IncomeStream[];
   expenses: ExpenseCategory[];
-  goals: Goal[];
-  debts: Debt[];
-  /** Planned one-off payments and windfalls. Dated events, not rates — see `OneOff`. */
+  /** Planned one-off payments and windfalls. Dated events, not rates. */
   oneOffs: OneOff[];
-  /**
-   * Cash on hand right now, never negative — debt is the `debts` list, not a
-   * negative balance. Funds debts first when any exist, goals otherwise.
-   */
+  /** Cash on hand right now, never negative. Where the projection starts. */
   currentBalance: number;
 }
 
@@ -119,10 +88,8 @@ export interface NamedBudget {
 }
 
 export const createEmptyBudget = (): Budget => ({
-  income: { amount: 0, frequency: 'weekly' },
+  incomes: [],
   expenses: [],
-  goals: [],
-  debts: [],
   oneOffs: [],
   currentBalance: 0,
 });

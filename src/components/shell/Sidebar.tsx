@@ -1,16 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import type { Route } from '@/hooks/useHashRoute';
-import {
-  LayoutDashboard,
-  Landmark,
-  Wallet,
-  Target,
-  Settings,
-  CalendarDays,
-  PiggyBank,
-  type LucideIcon,
-} from 'lucide-react';
+import { Wallet, Settings, CalendarDays, PiggyBank, type LucideIcon } from 'lucide-react';
 
 interface NavItem {
   route: Route;
@@ -25,38 +16,23 @@ interface NavItem {
 interface SidebarProps {
   route: Route;
   onNavigate: (route: Route) => void;
-  debtCount: number;
-  goalCount: number;
+  /** Shown against Money in/out so the nav says whether anything is entered. */
+  entryCount: number;
   /** Rendered at the foot of the nav — see TimeMachine for why it lives here. */
   footer?: ReactNode;
   /** Budget switcher, directly under the logo. */
   switcher?: ReactNode;
 }
 
-export function Sidebar({
-  route,
-  onNavigate,
-  debtCount,
-  goalCount,
-  footer,
-  switcher,
-}: SidebarProps) {
+export function Sidebar({ route, onNavigate, entryCount, footer, switcher }: SidebarProps) {
   const menu: NavItem[] = [
-    { route: 'overview', label: 'Overview', icon: LayoutDashboard },
-    {
-      route: 'debts',
-      label: 'Debts',
-      icon: Landmark,
-      badge: debtCount > 0 ? String(debtCount) : undefined,
-    },
-    { route: 'budget', label: 'Budget', icon: Wallet },
-    {
-      route: 'goals',
-      label: 'Goals',
-      icon: Target,
-      badge: goalCount > 0 ? String(goalCount) : undefined,
-    },
     { route: 'calendar', label: 'Calendar', icon: CalendarDays },
+    {
+      route: 'budget',
+      label: 'Money in & out',
+      icon: Wallet,
+      badge: entryCount > 0 ? String(entryCount) : undefined,
+    },
   ];
 
   const general: NavItem[] = [{ route: 'settings', label: 'Settings', icon: Settings }];

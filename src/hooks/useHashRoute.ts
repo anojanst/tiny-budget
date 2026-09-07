@@ -6,13 +6,14 @@ import { useEffect, useState } from 'react';
  * back/forward and shareable links in about twenty lines, with no dependency
  * and no server-side rewrite to configure for a static build.
  */
-export const ROUTES = ['overview', 'debts', 'budget', 'goals', 'calendar', 'settings'] as const;
+export const ROUTES = ['calendar', 'budget', 'settings'] as const;
 
 export type Route = (typeof ROUTES)[number];
 
 function currentRoute(): Route {
   const hash = window.location.hash.replace(/^#\/?/, '');
-  return (ROUTES as readonly string[]).includes(hash) ? (hash as Route) : 'overview';
+  // The calendar is the app; an unknown or empty hash lands there.
+  return (ROUTES as readonly string[]).includes(hash) ? (hash as Route) : 'calendar';
 }
 
 export function useHashRoute() {

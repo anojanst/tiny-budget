@@ -1,13 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageHeader } from '@/components/shell/PageHeader';
 import { StatCard } from '@/components/StatCard';
 import { OneOffSection } from '@/components/OneOffSection';
 import { buildCashflowDays } from '@/lib/calendar';
-import { debtSpendAtWeek } from '@/lib/debtMath';
 import { formatCurrency } from '@/lib/format';
 import {
   addMonths,
@@ -15,11 +13,11 @@ import {
   formatMonthYear,
   formatShortDate,
   isSameDay,
-  parseLocalDate,
   startOfMonth,
   toDateInputValue,
 } from '@/lib/dates';
 import { cn } from '@/lib/utils';
+import type { Route } from '@/hooks/useHashRoute';
 import type { useBudget } from '@/hooks/useBudget';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -27,15 +25,14 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 interface CalendarPageProps {
   budget: ReturnType<typeof useBudget>;
+  onNavigate: (route: Route) => void;
 }
 
-export function CalendarPage({ budget }: CalendarPageProps) {
-  const { budget: data, today, snowball, hasDebts, setIncome, addOneOff, updateOneOff, removeOneOff } =
-    budget;
+export function CalendarPage({ budget, onNavigate }: CalendarPageProps) {
+  const { budget: data, today, addOneOff, updateOneOff, removeOneOff } = budget;
   const [monthOffset, setMonthOffset] = useState(0);
 
   const visibleMonth = useMemo(() => addMonths(startOfMonth(today), monthOffset), [today, monthOffset]);
-  const nextPayday = data.income.nextPayday ? parseLocalDate(data.income.nextPayday) : null;
 
   // Always projected from today, however far ahead the view is scrolled — a
   // balance is only meaningful as the running total of everything before it.
@@ -45,23 +42,11 @@ export function CalendarPage({ budget }: CalendarPageProps) {
         from: today,
         through: endOfMonth(addMonths(startOfMonth(today), Math.max(monthOffset, 0))),
         startingBalance: data.currentBalance,
-        income: data.income,
-        nextPayday,
+        incomes: data.incomes,
         expenses: data.expenses,
         oneOffs: data.oneOffs,
-        cumulativeDebtSpend: (weeks) => (hasDebts ? debtSpendAtWeek(snowball, weeks) : 0),
       }),
-    [
-      today,
-      monthOffset,
-      data.currentBalance,
-      data.income,
-      data.expenses,
-      data.oneOffs,
-      nextPayday,
-      hasDebts,
-      snowball,
-    ],
+    [today, monthOffset, data.currentBalance, data.incomes, data.expenses, data.oneOffs],
   );
 
   const byKey = useMemo(() => new Map(days.map((d) => [d.key, d])), [days]);
@@ -99,40 +84,70 @@ export function CalendarPage({ budget }: CalendarPageProps) {
     null,
   );
   const firstShort = days.find((d) => d.short) ?? null;
-  // A shortfall in the first week, while there's cash and debt, is the week-0
-  // sweep rather than anything wrong with the budget itself.
-  const causedByCashSweep =
-    !!firstShort &&
-    hasDebts &&
-    data.currentBalance > 0 &&
-    firstShort.date.getTime() - today.getTime() < 8 * 24 * 60 * 60 * 1000;
+
+  const hasAnything = data.incomes.length > 0 || data.expenses.length > 0 || data.oneOffs.length > 0;
+  // A stream or bill with no date can't be placed on a day, so it's spread
+  // instead. Worth saying plainly — it's the difference between the calendar
+  // being a rough shape and being the actual schedule.
+  const undated = [...data.incomes, ...data.expenses].filter((entry) => !entry.nextDue).length;
 
   return (
     <>
       <PageHeader
-        title="Calendar"
-        subtitle="What lands when, and what you're left holding on each payday."
+        title={formatMonthYear(visibleMonth)}
+        subtitle="What lands when, and what you're left holding after it does."
         actions={
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              Next payday
-              <Input
-                type="date"
-                value={data.income.nextPayday ?? ''}
-                onChange={(e) => setIncome({ nextPayday: e.target.value || undefined })}
-                aria-label="Next payday"
-                className="w-40"
-              />
-            </label>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label="Previous month"
+              disabled={monthOffset === 0}
+              onClick={() => setMonthOffset((m) => Math.max(m - 1, 0))}
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMonthOffset(0)}
+              disabled={monthOffset === 0}
+            >
+              Today
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label="Next month"
+              onClick={() => setMonthOffset((m) => Math.min(m + 1, 24))}
+            >
+              <ChevronRight className="size-4" />
+            </Button>
           </div>
         }
       />
 
-      {!nextPayday && (
+      {!hasAnything && (
         <Alert className="mb-4">
-          <AlertDescription>
-            Set your next payday above and the calendar will mark every pay from then on, along
-            with what you're left holding once the bills in between have gone out.
+          <AlertDescription className="flex flex-wrap items-center gap-2">
+            Nothing to draw yet. Add what comes in and what goes out, give each one a date, and
+            it lands here.
+            <Button size="sm" variant="outline" onClick={() => onNavigate('budget')}>
+              Add income and payments
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {hasAnything && undated > 0 && (
+        <Alert className="mb-4">
+          <AlertDescription className="flex flex-wrap items-center gap-2">
+            {undated} {undated === 1 ? 'entry has' : 'entries have'} no date, so{' '}
+            {undated === 1 ? 'it is' : 'they are'} spread evenly rather than landing on a day.
+            Dating {undated === 1 ? 'it' : 'them'} is what turns this into an actual schedule.
+            <Button size="sm" variant="outline" onClick={() => onNavigate('budget')}>
+              Set dates
+            </Button>
           </AlertDescription>
         </Alert>
       )}
@@ -141,13 +156,7 @@ export function CalendarPage({ budget }: CalendarPageProps) {
         <Alert variant="destructive" className="mb-4">
           <AlertDescription>
             You run out of money on {formatShortDate(firstShort.date)} — down to{' '}
-            {formatCurrency(firstShort.balance)}.
-            {/* Nearly always the cause when the shortfall lands immediately:
-                the plan puts every dollar of cash on the smallest debt on day
-                one, which is fastest on paper and unlivable in practice. */}
-            {causedByCashSweep
-              ? ` That's the plan applying your ${formatCurrency(data.currentBalance)} to the smallest debt straight away. Paying the debt down fastest and keeping enough to live on are different goals — hold some back if this is too tight.`
-              : ' Something before then needs to move.'}
+            {formatCurrency(firstShort.balance)}. Something before then needs to move.
           </AlertDescription>
         </Alert>
       )}
@@ -155,22 +164,20 @@ export function CalendarPage({ budget }: CalendarPageProps) {
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
           featured
-          label={`Paydays in ${formatMonthYear(visibleMonth)}`}
+          label="Lowest point this month"
+          value={lowest ? formatCurrency(lowest.balance) : '—'}
+          hint={lowest ? `On ${formatShortDate(lowest.date)}` : 'Nothing projected yet'}
+          muted={!lowest}
+        />
+        <StatCard
+          label="Paydays"
           value={String(paydaysThisMonth.length)}
           hint={
             paydaysThisMonth.length > 0
               ? `Last one leaves ${formatCurrency(paydaysThisMonth[paydaysThisMonth.length - 1].balance)}`
-              : nextPayday
-                ? 'None fall in this month'
-                : 'Set a payday to see them'
+              : 'None dated this month'
           }
           muted={paydaysThisMonth.length === 0}
-        />
-        <StatCard
-          label="Lowest point"
-          value={lowest ? formatCurrency(lowest.balance) : '—'}
-          hint={lowest ? `On ${formatShortDate(lowest.date)}` : 'Nothing projected yet'}
-          muted={!lowest}
         />
         <StatCard
           label="Cash today"
@@ -181,37 +188,6 @@ export function CalendarPage({ budget }: CalendarPageProps) {
 
       <Card>
         <CardContent>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold">{formatMonthYear(visibleMonth)}</h2>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Previous month"
-                disabled={monthOffset === 0}
-                onClick={() => setMonthOffset((m) => Math.max(m - 1, 0))}
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setMonthOffset(0)}
-                disabled={monthOffset === 0}
-              >
-                Today
-              </Button>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Next month"
-                onClick={() => setMonthOffset((m) => Math.min(m + 1, 24))}
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-            </div>
-          </div>
-
           <div className="grid grid-cols-7 gap-1">
             {WEEKDAYS.map((label) => (
               <div
@@ -228,6 +204,7 @@ export function CalendarPage({ budget }: CalendarPageProps) {
               const inMonth = date.getMonth() === visibleMonth.getMonth();
               const isToday = isSameDay(date, today);
               const isPast = date.getTime() < today.getTime();
+              const hasMoneyIn = !!entry && (entry.isPayday || entry.credits.length > 0);
 
               return (
                 <div
@@ -237,7 +214,7 @@ export function CalendarPage({ budget }: CalendarPageProps) {
                     inMonth ? 'border-border' : 'border-transparent',
                     !inMonth && 'opacity-40',
                     isPast && 'bg-muted/40',
-                    (entry?.isPayday || entry?.credits.length) ? 'border-primary/40 bg-accent/40' : undefined,
+                    hasMoneyIn && 'border-primary/40 bg-accent/40',
                     entry?.short && 'border-destructive/50 bg-destructive/5',
                   )}
                 >
@@ -258,20 +235,22 @@ export function CalendarPage({ budget }: CalendarPageProps) {
                           figures collapse to dots and the list underneath
                           carries the detail instead. */}
                       <span className="flex gap-1 sm:hidden" aria-hidden>
-                        {(entry.isPayday || entry.credits.length > 0) && (
-                          <span className="size-1.5 rounded-full bg-primary" />
-                        )}
+                        {hasMoneyIn && <span className="size-1.5 rounded-full bg-primary" />}
                         {entry.bills.length > 0 && (
                           <span className="size-1.5 rounded-full bg-muted-foreground" />
                         )}
                       </span>
 
                       <span className="hidden sm:contents">
-                        {entry.isPayday && (
-                          <span className="text-[0.7rem] font-medium text-primary tabular-nums">
-                            +{formatCurrency(entry.incoming)}
+                        {entry.paydays.map((pay) => (
+                          <span
+                            key={pay.id}
+                            className="truncate text-[0.7rem] font-medium text-primary tabular-nums"
+                            title={`${pay.name} +${formatCurrency(pay.amount)}`}
+                          >
+                            +{formatCurrency(pay.amount)} {pay.name}
                           </span>
-                        )}
+                        ))}
                         {entry.credits.map((credit) => (
                           <span
                             key={credit.id}
@@ -296,7 +275,7 @@ export function CalendarPage({ budget }: CalendarPageProps) {
                         {/* The balance is the whole point, so it anchors the
                             cell — but only on days something actually happened,
                             or every square would be a wall of numbers. */}
-                        {(entry.isPayday || entry.bills.length > 0 || entry.credits.length > 0) && (
+                        {(hasMoneyIn || entry.bills.length > 0) && (
                           <span
                             className={cn(
                               'mt-auto text-xs font-semibold tabular-nums',
@@ -318,43 +297,39 @@ export function CalendarPage({ budget }: CalendarPageProps) {
               reads as a plain statement of the month on a wide one. */}
           {monthEvents.length > 0 && (
             <ul className="mt-4 space-y-1 border-t border-border pt-3">
-              {monthEvents.map((entry) => (
-                <li key={entry.key} className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                  <span className="w-16 shrink-0 text-muted-foreground tabular-nums">
-                    {entry.date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    {entry.isPayday && (
-                      <span className="font-medium text-primary">
-                        Payday +{formatCurrency(entry.incoming)}
-                      </span>
-                    )}
-                    {entry.credits.map((credit, i) => (
-                      <span key={credit.id} className="font-medium text-primary">
-                        {(entry.isPayday || i > 0) && ' · '}
-                        {credit.name} +{formatCurrency(credit.amount)}
-                      </span>
-                    ))}
-                    {(entry.isPayday || entry.credits.length > 0) && entry.bills.length > 0 && (
-                      <span className="text-muted-foreground"> · </span>
-                    )}
-                    {entry.bills.map((bill, i) => (
-                      <span key={bill.id} className="text-muted-foreground">
-                        {i > 0 && ' · '}
-                        {bill.name} −{formatCurrency(bill.amount)}
-                      </span>
-                    ))}
-                  </span>
-                  <span
-                    className={cn(
-                      'shrink-0 font-semibold tabular-nums',
-                      entry.short ? 'text-destructive' : 'text-foreground',
-                    )}
-                  >
-                    {formatCurrency(entry.balance)}
-                  </span>
-                </li>
-              ))}
+              {monthEvents.map((entry) => {
+                const parts = [
+                  ...entry.paydays.map((p) => ({ key: p.id, text: `${p.name} +${formatCurrency(p.amount)}`, in: true })),
+                  ...entry.credits.map((c) => ({ key: c.id, text: `${c.name} +${formatCurrency(c.amount)}`, in: true })),
+                  ...entry.bills.map((b) => ({ key: b.id, text: `${b.name} −${formatCurrency(b.amount)}`, in: false })),
+                ];
+                return (
+                  <li key={entry.key} className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                    <span className="w-16 shrink-0 text-muted-foreground tabular-nums">
+                      {entry.date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      {parts.map((part, i) => (
+                        <span
+                          key={part.key}
+                          className={part.in ? 'font-medium text-primary' : 'text-muted-foreground'}
+                        >
+                          {i > 0 && <span className="text-muted-foreground"> · </span>}
+                          {part.text}
+                        </span>
+                      ))}
+                    </span>
+                    <span
+                      className={cn(
+                        'shrink-0 font-semibold tabular-nums',
+                        entry.short ? 'text-destructive' : 'text-foreground',
+                      )}
+                    >
+                      {formatCurrency(entry.balance)}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>

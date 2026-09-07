@@ -1,84 +1,75 @@
 # tiny-budget
 
-A weekly budget tuner for getting out of debt and building savings. Enter what
-you earn and spend, list your debts, and see exactly when you'll be debt free —
-then set savings goals for what comes after.
+A cash calendar. Enter what comes in and what goes out, give each one a date,
+and see what you're actually left holding on any day of the month.
 
 Everything runs in the browser and persists to `localStorage`. No backend, no
 accounts, no data leaves the machine.
 
+## The idea
+
+Most budgeting tools answer "can I afford this on average". That question is
+easy and not very useful: a budget that balances on average still leaves you
+short the week a half-yearly insurance premium lands next to your rent.
+
+This one answers "what will be in the account on the 14th". Money has dates,
+so the calendar is the app — everything else exists to feed it.
+
 ## Features
 
-- **Guided setup** — a five-step intake asks for income, cash on hand,
-  expenses, and debts before dropping you on the dashboard, so you're never
-  staring at an empty screen wondering where to start.
-- **Debt snowball** — the Ramsey method. Debts are ordered smallest balance
-  first, every minimum gets paid, and every spare dollar attacks the top debt.
-  When it clears, its payment rolls into the next one — the payment snowballs.
-  A debt is just two numbers: what you owe and the least you must pay each
-  week. Interest isn't asked for, because a real minimum payment already covers
-  it — so the balance is simply paid down.
-- **Debt-free date** — the headline number: when you're out, and what you'll
-  have paid to get there.
-- **Debt vs. savings dial** — saving while you owe money is allowed, but never
-  silent. Move the dial and it tells you exactly how many weeks it adds to your
-  debt-free date. Defaults to $0.
-- **Honest about shortfalls** — if your leftover can't cover your minimum
-  payments, the app says so and refuses to project a payoff date you can't hit.
-- **Six themes** — one hue drives the brand colour, the greys, the borders and
-  the chart palette together, so the whole app changes tone rather than just
-  the buttons.
+- **The calendar** — a month grid of what lands when. Every pay is marked with
+  the balance you're left holding once the bills in between have gone out, and
+  any day that goes negative is flagged before you get there. The lowest point
+  of the month is called out, because that is the number that actually bites.
+- **Several income streams** — two jobs, a partner's wage, a rental. Each has
+  its own cycle and its own payday, and each is named on the calendar so you
+  can see which money landed.
+- **Recurring payments** — rent, power, a loan repayment. Any of them can carry
+  a next-due date and an end date. A loan is nothing more than this: an amount,
+  a cycle, and a final payment, after which the calendar stops charging it.
+- **One-offs, in and out** — a headphone bought this month, a tax refund
+  landing next week. Single dated events that move cash on one day and are then
+  over, so they never touch the weekly figures. A bonus that arrives once
+  should not read as a permanent pay rise, and never counts as a payday.
+- **Undated money is spread, not dropped** — anything without a date is spread
+  evenly at its weekly rate rather than ignored, so an unconfigured calendar
+  reads flat instead of bleeding to red. The app says how many entries are in
+  that state, because dating them is what turns the shape of your month into
+  its actual schedule.
+- **Weekly normalisation** — mix weekly, fortnightly, monthly, quarterly,
+  half-yearly and annual amounts; everything converts to a common weekly basis
+  (`52 / 12` weeks per month) for the summary figures.
 - **Several budgets at once** — a household, a flat, a what-if. Switch from the
-  sidebar; each keeps its own income, expenses, debts and goals. Manage, rename
-  and delete them in Settings.
-- **Deadlines on goals** — give a goal a "needed by" date and it tells you
-  whether the plan actually makes it, counting everything ahead of it including
-  the debt payoff. The date never reorders anything on its own: a nice-to-have
-  repair can carry a tighter deadline than an emergency fund, so a late goal
-  offers to jump the queue instead of doing it silently.
+  sidebar; each keeps its own income, payments and one-offs.
 - **Export and import** — a budget as a JSON file you can back up or carry to
   another browser. Importing opens the file as an *additional* budget, so it
   never overwrites what you already have. Exports from older versions still
-  open; they're migrated on the way in.
-- **Weekly-normalized budgeting** — mix weekly, fortnightly, monthly,
-  quarterly, half-yearly and annual amounts; everything converts to a common
-  weekly basis (`52 / 12` weeks per month).
-- **Recurring bills are reserved, not saved for** — a $600 half-yearly
-  insurance is $23.08/wk taken off the top, *before* debts and goals, because
-  money you're contractually required to pay isn't spare. Quarterly and longer
-  cycles open their date fields by default, but *any* expense can carry a
-  next-due date (which rolls forward on its own) and an end date, after which
-  it stops counting — the calendar needs a date to place a bill on a day
-  rather than smearing it across the week. The fields are behind a per-row
-  toggle so twenty undated rows cost no extra height.
-- **One-offs, in and out** — a headphone bought this month, a tax refund
-  landing next week. Deliberately not an expense, an income, or a goal: those
-  are all *rates* that recur and shift what's spare from now until forever,
-  and a goal is money being accumulated toward a target. A one-off is a single
-  dated event that moves cash on one day and is then over, so it shows on the
-  calendar without touching any weekly figure — a bonus that arrives once
-  never reads as a permanent pay rise, and never counts as a payday. Dates
-  already past are ignored; that money has already moved.
-- **Priority waterfall for goals** — give each goal a priority number (lower
-  funds first). Goals sharing a number split the leftover evenly; a tier only
-  starts receiving money once every goal ahead of it is fully funded, and a
-  goal's share redistributes to the rest of its tier the moment it completes.
-- **Every penny goes to goals** — the current balance is spent first (instantly),
-  then the ongoing weekly leftover. "Free each week" reads $0 until the last
-  goal is funded, which is the point.
-- **Time machine** — pick any future date and see the projected balance, split
-  into what's free vs. what's committed to goals.
-- **Cash calendar** — a month grid of what lands when. Set your next payday and
-  every pay is marked with the balance you're left holding once the bills in
-  between have gone out. This is a *dated cashflow* rather than the weekly
-  rates the rest of the app uses: a budget that balances on average can still
-  leave you short the week a half-yearly premium arrives, and only a calendar
-  shows that. Days that go negative are flagged. Undated money — income before
-  you've set a payday, expenses without a due date — is spread at its weekly
-  rate rather than ignored, so an unconfigured calendar reads flat instead of
-  bleeding to red.
-- **Live charts** — a pie of where income goes, and a stacked-area projection
-  where each goal is its own band that visibly flattens the week it's funded.
+  open; they are migrated on the way in.
+- **Six themes** — one hue drives the brand colour, the greys, the borders and
+  the chart palette together, so the whole app changes tone rather than just
+  the buttons.
+
+## What happened to goals and debts
+
+Earlier versions modelled debts with a Ramsey-style snowball and savings goals
+with a priority waterfall. Both were retired: once every payment can carry a
+date, a debt *is* a recurring payment with an end date, and a savings goal is a
+dated payment you are building up to. Keeping separate machinery for them meant
+two models of the same money that could disagree.
+
+Nothing stored is discarded. Old budgets are converted on load:
+
+| Was | Becomes |
+| --- | --- |
+| A debt with a minimum payment | A recurring payment, ending on the date it would be paid off |
+| A debt with no agreed payment | A one-off payment for the balance, a month out |
+| A goal with a deadline | A one-off payment on that date, for whatever is still to find |
+| A goal with no deadline | The same, parked three months out |
+| The single income figure | One pay stream, keeping its cycle and payday |
+
+The trade-off is real and worth stating: you lose the automatic debt-free date
+and the snowball's rolling payments. What you get back is one model instead of
+three, and a payoff date you can *see* on a calendar rather than trust.
 
 ## Getting started
 
@@ -102,45 +93,40 @@ npx vite preview
 | `npm run dev` | Vite dev server with HMR |
 | `npm run build` | Typecheck (`tsc -b`) then production build |
 | `npm run preview` | Serve the production build |
-| `npm test` | Unit tests for the budget/waterfall math (Vitest) |
+| `npm test` | Unit tests for the cashflow and migration logic (Vitest) |
 | `npm run lint` | Oxlint |
 
 ## Layout
 
 ```
 src/
-  lib/budgetMath.ts     pure budget + priority-waterfall math (unit tested)
-  lib/debtMath.ts       pure debt-snowball simulation (unit tested)
-  lib/dates.ts          local-date parsing/formatting helpers
-  hooks/useBudget.ts    persisted budget state + versioned migrations
-  hooks/useTimeMachine.ts  the shared "what if I wait until X" horizon
-  hooks/useOnboarding.ts   first-run setup flag
-  hooks/useHashRoute.ts    tiny hash router (no dependency)
-  pages/                one file per screen
+  lib/calendar.ts       the dated cashflow projection (unit tested)
+  lib/budgetMath.ts     frequency/weekly-rate primitives (unit tested)
+  lib/dates.ts          local-date parsing, formatting and arithmetic
+  hooks/useBudget.ts    persisted state + versioned migrations (unit tested)
+  hooks/useHashRoute.ts tiny hash router (no dependency)
+  pages/                Calendar, Money in & out, Settings
   components/shell/     sidebar, mobile nav, page header
   components/           widgets
   components/ui/        shadcn/ui primitives
 ```
 
-The app is split across five screens — Overview, Debts, Budget, Goals,
-Settings — rather than one dense dashboard. Each screen holds only the widgets
-that screen is about, so nothing has to scroll inside its own card: the page
-scrolls, the widgets don't.
+`calendar.ts` and `budgetMath.ts` are pure functions with no React imports, so
+the projection is covered by tests independently of the UI.
 
-Both math modules are pure functions with no React imports, so the waterfall and
-snowball behaviour are covered by tests independently of the UI.
+### How the projection works
 
-### How the money splits
+Every entry is either **dated** or **undated**, never both. A dated entry lands
+as a lump on its date and recurs from there; an undated one is spread evenly
+across the days it covers. Counting an entry both ways would silently
+double-charge exactly the bills someone took the trouble to date, so there is a
+test pinning it.
 
-With no debts, nothing has changed: the weekly leftover and your balance fund
-savings goals by priority. With debts, minimums come off the top, and what's
-left is split by the dial — everything to the snowball by default. Your cash on
-hand attacks debts first, and only reaches goals once every debt is cleared.
-
-Goal math is solved in closed form because nothing compounds. Debt math is
-simulated week by week because interest does — see the header comment in
-`debtMath.ts` for why the closed-form version was rejected.
+Income and expenses share one type and one code path, differing only in which
+list they sit in. That symmetry is load-bearing: an earlier version dated the
+money going out but not the money coming in, and the balance could only ever
+fall — every calendar rendered red regardless of how healthy the budget was.
 
 ## Stack
 
-Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Recharts · Vitest
+Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Base UI · Vitest

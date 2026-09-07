@@ -61,3 +61,23 @@ export const EXPENSE_CATEGORIES: readonly string[] = [
   'Union fees',
   'Savings club',
 ];
+
+/**
+ * The same idea for pay streams. Households commonly have more than one — two
+ * jobs, a partner's wage, a rental — and each wants naming so the calendar can
+ * say which money landed.
+ */
+export const INCOME_CATEGORIES: readonly string[] = [
+  'Salary',
+  'Wages',
+  'Partner income',
+  'Side job',
+  'Freelance',
+  'Rental income',
+  'Benefit',
+  'Pension',
+  'Child support',
+  'Dividends',
+  'Maintenance',
+  'Other income',
+];

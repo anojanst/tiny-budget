@@ -259,7 +259,7 @@ export function SettingsPage({
               <div>
                 <p className="text-sm font-medium">Empty this budget</p>
                 <p className="text-xs text-muted-foreground">
-                  Clears the selected budget's income, expenses, debts, and goals, keeping its
+                  Clears the selected budget's income, payments and one-offs, keeping its
                   name. Your other budgets are untouched.
                 </p>
               </div>
@@ -279,20 +279,20 @@ export function SettingsPage({
               can be compared against another.
             </p>
             <p>
-              <span className="font-medium text-foreground">Debts use the snowball.</span> They're
-              ordered by balance, smallest first. You pay every minimum, and everything spare
-              goes at the smallest. When it clears, its payment rolls into the next one — so the
-              amount attacking your debt grows each time one disappears.
+              <span className="font-medium text-foreground">Dates are what matter.</span> An
+              entry with a date lands on that day. One without is spread evenly instead, because
+              the calendar has no way to know when it leaves — so dating things is what turns
+              the shape of your month into its actual schedule.
             </p>
             <p>
-              <span className="font-medium text-foreground">Interest isn't asked for.</span> A
-              minimum payment already covers its own interest, so each balance is simply paid
-              down. That keeps the plan honest without making you hunt for a rate.
+              <span className="font-medium text-foreground">A loan is just a payment.</span> Give
+              the repayment its amount, its cycle and the date it comes out, and set an end date
+              for the final one. The calendar then stops charging it the week it's paid off.
             </p>
             <p>
-              <span className="font-medium text-foreground">Goals come after debt.</span> While
-              you owe money every spare dollar attacks it. Once the last debt is gone, the whole
-              weekly leftover funds your goals, lowest priority number first.
+              <span className="font-medium text-foreground">One-offs happen once.</span> A
+              purchase or a windfall moves cash on its date and never comes back around, so it
+              never touches the weekly figures.
             </p>
           </CardContent>
         </Card>
@@ -314,7 +314,7 @@ export function SettingsPage({
         description={
           budgets.length === 1
             ? "This is your only budget, so deleting it leaves you with a fresh empty one. It can't be undone."
-            : "Its income, expenses, debts, and goals are removed for good. It can't be undone — export it first if you might want it back."
+            : "Its income, payments and one-offs are removed for good. It can't be undone — export it first if you might want it back."
         }
         confirmLabel="Delete budget"
         destructive

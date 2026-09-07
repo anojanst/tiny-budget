@@ -1,13 +1,10 @@
 import { cn } from '@/lib/utils';
 import type { Route } from '@/hooks/useHashRoute';
-import { LayoutDashboard, Landmark, Wallet, Target, CalendarDays, Settings, type LucideIcon } from 'lucide-react';
+import { Wallet, CalendarDays, Settings, type LucideIcon } from 'lucide-react';
 
 const ITEMS: { route: Route; label: string; icon: LucideIcon }[] = [
-  { route: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { route: 'debts', label: 'Debts', icon: Landmark },
-  { route: 'budget', label: 'Budget', icon: Wallet },
-  { route: 'goals', label: 'Goals', icon: Target },
   { route: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { route: 'budget', label: 'In & out', icon: Wallet },
   { route: 'settings', label: 'Settings', icon: Settings },
 ];
 

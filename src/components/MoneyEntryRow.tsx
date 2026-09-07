@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { CategoryCombobox } from '@/components/ui/category-combobox';
 import { FrequencySelect } from '@/components/ui/frequency-select';
-import { EXPENSE_CATEGORIES } from '@/lib/expenseCategories';
+
 import type { Frequency, MoneyEntry } from '@/types/budget';
 import { formatCurrency } from '@/lib/format';
 import { isEntryActive, isLumpySchedule, nextDueOccurrence, toWeeklyAmount } from '@/lib/budgetMath';
@@ -14,6 +14,8 @@ import { CalendarDays, X } from 'lucide-react';
 interface MoneyEntryRowProps {
   entry: MoneyEntry;
   today: Date;
+  /** Name suggestions. Free text is always accepted. */
+  categories: readonly string[];
   onUpdate: (id: string, patch: Partial<Omit<MoneyEntry, 'id'>>) => void;
   onRemove: (id: string) => void;
 }
@@ -34,6 +36,7 @@ interface MoneyEntryRowProps {
 export const MoneyEntryRow = memo(function MoneyEntryRow({
   entry,
   today,
+  categories,
   onUpdate,
   onRemove,
 }: MoneyEntryRowProps) {
@@ -57,9 +60,9 @@ export const MoneyEntryRow = memo(function MoneyEntryRow({
         <CategoryCombobox
           value={entry.name}
           onValueChange={(name) => onUpdate(entry.id, { name })}
-          items={EXPENSE_CATEGORIES}
+          items={categories}
           placeholder="Name"
-          aria-label="Expense name"
+          aria-label={`${entry.name || "Entry"} name`}
           className="min-w-0 flex-1"
         />
         <Input

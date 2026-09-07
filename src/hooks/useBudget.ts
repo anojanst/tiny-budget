@@ -1,184 +1,238 @@
 import { useCallback, useMemo } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import { generateId } from '@/lib/id';
+import { isEntryActive, sumWeekly, toWeeklyAmount } from '@/lib/budgetMath';
+import { addDays, addWeeks, startOfToday, toDateInputValue } from '@/lib/dates';
 import {
-  calculateGoalsProgress,
-  currentFreeLeftover,
-  isEntryActive,
-  sumWeekly,
-  toWeeklyAmount,
-  weeklyIncomeAmount,
-  WEEKS_PER_MONTH,
-  type GoalProgress,
-} from '@/lib/budgetMath';
-import { simulateSnowball } from '@/lib/debtMath';
-import { startOfToday } from '@/lib/dates';
-import { createEmptyBudget, type Budget, type Debt, type ExpenseCategory, type Frequency, type Goal, type Income, type MoneyEntry, type NamedBudget, type OneOff, type OneOffDirection } from '@/types/budget';
+  createEmptyBudget,
+  type Budget,
+  type ExpenseCategory,
+  type Frequency,
+  type IncomeStream,
+  type MoneyEntry,
+  type NamedBudget,
+  type OneOff,
+  type OneOffDirection,
+} from '@/types/budget';
 
 const STORAGE_KEY = 'tiny-budget:v1';
-const CURRENT_VERSION = 10;
+const CURRENT_VERSION = 11;
 
 /**
  * Every version that stored budgets as a *list*. A newer version must never
- * simply fail the equality check below and fall through to `readBudget`: that
- * path expects a single `.budget` and would hand back an empty one, silently
- * wiping every budget the user has. Adding a field means adding the old
- * version here and defaulting the field in `normaliseBudget`.
+ * simply fail the equality check in `readStore` and fall through to
+ * `readBudget`: that path expects a single `.budget` and would hand back an
+ * empty one, silently wiping every budget the user has. Adding a field means
+ * adding the old version here and handling it in `toBudget`.
  */
-const LIST_VERSIONS: readonly number[] = [8, 9, 10];
+const LIST_VERSIONS: readonly number[] = [8, 9, 10, 11];
 
 interface StoredState {
   version: typeof CURRENT_VERSION;
-  /** Which budget the app is currently showing. Always present in `budgets`. */
   activeId: string;
   budgets: NamedBudget[];
+}
+
+/**
+ * Every budget shape this app has ever written, loosely typed.
+ *
+ * The migration chain below converts old *envelopes* into this; `toBudget`
+ * then converts this into today's `Budget`. Splitting it that way means the
+ * historical migrations don't have to be rewritten every time the current
+ * shape changes — they only ever have to produce something this can describe.
+ */
+interface LegacyBudget {
+  /** v11 and later. */
+  incomes?: unknown;
+  /** v2–v10: exactly one pay stream. */
+  income?: { amount?: unknown; frequency?: unknown; nextPayday?: unknown };
+  expenses?: unknown;
+  goals?: unknown;
+  debts?: unknown;
+  oneOffs?: unknown;
+  currentBalance?: unknown;
+}
+
+interface LegacyGoal {
+  id?: string;
+  name?: string;
+  targetAmount?: number;
+  currentSaved?: number;
+  targetDate?: string;
+}
+
+interface LegacyDebt {
+  id?: string;
+  name?: string;
+  balance?: number;
+  minimumPayment?: number;
 }
 
 function isValidBudget(value: unknown): value is Budget {
   if (!value || typeof value !== 'object') return false;
   const b = value as Budget;
-  const income = b.income as Income | undefined;
-  return (
-    !!income &&
-    typeof income.amount === 'number' &&
-    Array.isArray(b.expenses) &&
-    Array.isArray(b.goals) &&
-    Array.isArray(b.debts) &&
-    typeof b.currentBalance === 'number'
-  );
+  return Array.isArray(b.expenses) && typeof b.currentBalance === 'number';
+}
+
+function asEntries(value: unknown): MoneyEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry): entry is MoneyEntry => !!entry && typeof entry === 'object')
+    .map((entry) => ({
+      id: typeof entry.id === 'string' ? entry.id : generateId(),
+      name: typeof entry.name === 'string' ? entry.name : '',
+      amount: typeof entry.amount === 'number' ? entry.amount : 0,
+      frequency: (entry.frequency ?? 'monthly') as Frequency,
+      ...(entry.nextDue ? { nextDue: entry.nextDue } : {}),
+      ...(entry.endDate ? { endDate: entry.endDate } : {}),
+    }));
 }
 
 /**
- * Fills in anything added since a stored budget was written. Kept separate
- * from `isValidBudget` on purpose: validation must not require a field that
- * older-but-perfectly-good data can't have, or the budget gets thrown away
- * for being out of date rather than being broken.
+ * How long a debt would take to clear at its minimum payment.
+ *
+ * Interest was never modelled — a real minimum covers it by construction — so
+ * this is just division. It exists to give the converted expense an end date,
+ * which is how the debt's *balance* survives the move to a pure cashflow
+ * model: the payment recurs until the debt is gone, then stops on its own.
  */
-function normaliseBudget(budget: Budget): Budget {
-  const oneOffs = Array.isArray(budget.oneOffs) ? budget.oneOffs : [];
+function weeksToClear(balance: number, weeklyPayment: number): number {
+  if (weeklyPayment <= 0) return 0;
+  return Math.ceil(balance / weeklyPayment);
+}
+
+/**
+ * Turns any historical budget into today's shape.
+ *
+ * Goals and debts no longer exist as concepts, but the money they described is
+ * real and must not vanish:
+ *
+ * - A **debt** becomes the recurring payment it always was, ending on the date
+ *   it would be paid off. Both facts survive — the payment and the balance —
+ *   and the calendar stops charging it the week it clears.
+ * - A **goal** becomes a one-off payment for whatever is still to find. That's
+ *   what a savings target is in a dated model: money leaving on a day. Goals
+ *   with a deadline keep it; the rest are parked three months out, visible and
+ *   editable rather than quietly deleted.
+ */
+function toBudget(legacy: LegacyBudget, today = startOfToday()): Budget {
+  const expenses: ExpenseCategory[] = asEntries(legacy.expenses);
+  const oneOffs: OneOff[] = Array.isArray(legacy.oneOffs)
+    ? (legacy.oneOffs as OneOff[])
+        .filter((item) => !!item && typeof item === 'object')
+        // One-offs could only be payments before v10, so a missing direction
+        // is an outgoing one — leaving it undefined reads as income.
+        .map((item) => ({ ...item, direction: item.direction ?? 'out' }))
+    : [];
+
+  // v11 onward stores a list; everything before it stored a single stream.
+  let incomes: IncomeStream[] = asEntries(legacy.incomes);
+  if (incomes.length === 0 && legacy.income && typeof legacy.income === 'object') {
+    const amount = typeof legacy.income.amount === 'number' ? legacy.income.amount : 0;
+    if (amount > 0) {
+      incomes = [
+        {
+          id: generateId(),
+          name: 'Income',
+          amount,
+          frequency: (legacy.income.frequency ?? 'weekly') as Frequency,
+          ...(typeof legacy.income.nextPayday === 'string' && legacy.income.nextPayday
+            ? { nextDue: legacy.income.nextPayday }
+            : {}),
+        },
+      ];
+    }
+  }
+
+  for (const debt of Array.isArray(legacy.debts) ? (legacy.debts as LegacyDebt[]) : []) {
+    if (!debt || typeof debt !== 'object') continue;
+    const balance = typeof debt.balance === 'number' ? debt.balance : 0;
+    const minimum = typeof debt.minimumPayment === 'number' ? debt.minimumPayment : 0;
+    if (balance <= 0) continue;
+    if (minimum > 0) {
+      expenses.push({
+        id: typeof debt.id === 'string' ? debt.id : generateId(),
+        name: debt.name || 'Loan',
+        amount: minimum,
+        frequency: 'weekly',
+        endDate: toDateInputValue(addWeeks(today, weeksToClear(balance, minimum))),
+      });
+    } else {
+      // Owed, but on no schedule at all — an informal loan. There is no
+      // recurring payment to describe, so it becomes a single payment for the
+      // balance, dated a month out for the user to move.
+      oneOffs.push({
+        id: typeof debt.id === 'string' ? debt.id : generateId(),
+        name: debt.name || 'Loan',
+        amount: balance,
+        date: toDateInputValue(addDays(today, 30)),
+        direction: 'out',
+      });
+    }
+  }
+
+  for (const goal of Array.isArray(legacy.goals) ? (legacy.goals as LegacyGoal[]) : []) {
+    if (!goal || typeof goal !== 'object') continue;
+    const target = typeof goal.targetAmount === 'number' ? goal.targetAmount : 0;
+    const saved = typeof goal.currentSaved === 'number' ? goal.currentSaved : 0;
+    const outstanding = Math.max(target - saved, 0);
+    if (outstanding <= 0) continue;
+    oneOffs.push({
+      id: typeof goal.id === 'string' ? goal.id : generateId(),
+      name: goal.name || 'Goal',
+      amount: outstanding,
+      date: goal.targetDate || toDateInputValue(addDays(today, 90)),
+      direction: 'out',
+    });
+  }
+
   return {
-    ...budget,
-    // One-offs could only be payments before v10, so an entry without a
-    // direction is an outgoing one.
-    oneOffs: oneOffs.map((item) => ({ ...item, direction: item.direction ?? 'out' })),
+    incomes,
+    expenses,
+    oneOffs,
+    currentBalance: Math.max(
+      typeof legacy.currentBalance === 'number' ? legacy.currentBalance : 0,
+      0,
+    ),
   };
 }
 
 /** Goals from before priority existed all start equal, at 1. */
-function withDefaultPriority(goals: unknown): Goal[] {
-  if (!Array.isArray(goals)) return [];
-  return (goals as Goal[]).map((goal) => ({
-    ...goal,
-    priority: typeof goal.priority === 'number' && goal.priority >= 1 ? goal.priority : 1,
-  }));
+function withDefaultPriority(goals: unknown): unknown[] {
+  return Array.isArray(goals) ? goals : [];
 }
 
-/**
- * v1 stored income as a list of named entries. Collapse it into the single
- * weekly figure v2+ uses so an existing budget isn't silently wiped.
- */
-function migrateFromV1(value: unknown): Budget | null {
+function migrateFromV1(value: unknown): LegacyBudget | null {
   if (!value || typeof value !== 'object') return null;
   const b = value as { income?: unknown; expenses?: unknown; goals?: unknown };
   if (!Array.isArray(b.income) || !Array.isArray(b.expenses) || !Array.isArray(b.goals)) {
     return null;
   }
+  // v1 held several income rows; every version after it held one weekly total.
   const weeklyTotal = (b.income as MoneyEntry[]).reduce(
     (sum, entry) => sum + toWeeklyAmount(entry?.amount ?? 0, entry?.frequency ?? 'weekly'),
     0,
   );
   return {
     income: { amount: weeklyTotal, frequency: 'weekly' },
-    expenses: b.expenses as ExpenseCategory[],
+    expenses: b.expenses,
     goals: withDefaultPriority(b.goals),
-    debts: [],
-    oneOffs: [],
     currentBalance: 0,
   };
 }
 
-/**
- * v2 and v3 share a shape: both predate goal priority and debts, and neither
- * stored a balance anyone had actually entered.
- */
-function migrateFromV2OrV3(value: unknown): Budget | null {
+function migrateFromV2OrV3(value: unknown): LegacyBudget | null {
   if (!value || typeof value !== 'object') return null;
-  const b = value as { income?: unknown; expenses?: unknown; goals?: unknown };
+  const b = value as LegacyBudget;
   if (!b.income || !Array.isArray(b.expenses) || !Array.isArray(b.goals)) return null;
-  return {
-    income: b.income as Income,
-    expenses: b.expenses as ExpenseCategory[],
-    goals: withDefaultPriority(b.goals),
-    debts: [],
-    oneOffs: [],
-    currentBalance: 0,
-  };
+  return { ...b, goals: withDefaultPriority(b.goals) };
 }
 
-/**
- * v4 predates debts. Everything it stored carries over untouched — except a
- * negative balance, which v4 used to mean "in debt" and v5 expresses as a
- * `debts` entry instead. There's not enough detail in a bare negative number
- * to build a Debt from, so it clamps to 0 and the user re-enters the debt.
- */
-function migrateFromV4(value: unknown): Budget | null {
+function migrateLater(value: unknown): LegacyBudget | null {
   if (!value || typeof value !== 'object') return null;
-  const b = value as { income?: unknown; expenses?: unknown; goals?: unknown; currentBalance?: unknown };
-  if (!b.income || !Array.isArray(b.expenses) || !Array.isArray(b.goals)) return null;
-  return {
-    income: b.income as Income,
-    expenses: b.expenses as ExpenseCategory[],
-    goals: withDefaultPriority(b.goals),
-    debts: [],
-    oneOffs: [],
-    currentBalance: Math.max(typeof b.currentBalance === 'number' ? b.currentBalance : 0, 0),
-  };
-}
-
-/**
- * v5 debts carried an APR and a lender type. Both are gone: a minimum payment
- * already covers its own interest, so the balance is simply paid down. The
- * fields are dropped rather than kept as dead weight in storage.
- */
-function migrateFromV5(value: unknown): Budget | null {
-  if (!value || typeof value !== 'object') return null;
-  const b = value as Partial<Budget> & { debts?: unknown };
-  if (!b.income || !Array.isArray(b.expenses) || !Array.isArray(b.goals)) return null;
-  const debts = Array.isArray(b.debts)
-    ? (b.debts as Debt[]).map(({ id, name, balance, minimumPayment }) => ({
-        id,
-        name,
-        balance: Math.max(balance ?? 0, 0),
-        minimumPayment: Math.max(minimumPayment ?? 0, 0),
-      }))
-    : [];
-  return {
-    income: b.income as Income,
-    expenses: b.expenses as ExpenseCategory[],
-    goals: withDefaultPriority(b.goals),
-    debts,
-    oneOffs: [],
-    currentBalance: Math.max(b.currentBalance ?? 0, 0),
-  };
-}
-
-/**
- * v6 carried `weeklyGoalContribution`, a dial that split spare money between
- * the snowball and savings. Goals are now strictly post-debt, so there's
- * nothing to split and the field is dropped.
- */
-function migrateFromV6(value: unknown): Budget | null {
-  if (!value || typeof value !== 'object') return null;
-  const b = value as Partial<Budget>;
-  if (!b.income || !Array.isArray(b.expenses) || !Array.isArray(b.goals)) return null;
-  return {
-    income: b.income as Income,
-    expenses: b.expenses as ExpenseCategory[],
-    goals: withDefaultPriority(b.goals),
-    debts: Array.isArray(b.debts) ? (b.debts as Debt[]) : [],
-    oneOffs: [],
-    currentBalance: Math.max(b.currentBalance ?? 0, 0),
-  };
+  const b = value as LegacyBudget;
+  if (!b.income || !Array.isArray(b.expenses)) return null;
+  return b;
 }
 
 /**
@@ -186,17 +240,20 @@ function migrateFromV6(value: unknown): Budget | null {
  * to 7 stored exactly one budget under `.budget`; from 8 they live in a list,
  * so this is only reached for the legacy shapes and for imported files.
  */
-export function readBudget(value: unknown): Budget {
+export function readBudget(value: unknown, today = startOfToday()): Budget {
   if (!value || typeof value !== 'object') return createEmptyBudget();
   const s = value as { version?: unknown; budget?: unknown };
-  if (s.version === 7 && isValidBudget(s.budget)) return s.budget;
-  if (s.version === 6) return migrateFromV6(s.budget) ?? createEmptyBudget();
-  if (s.version === 5) return migrateFromV5(s.budget) ?? createEmptyBudget();
-  if (s.version === 4) return migrateFromV4(s.budget) ?? createEmptyBudget();
-  if (s.version === 3 || s.version === 2) return migrateFromV2OrV3(s.budget) ?? createEmptyBudget();
-  if (s.version === 1) return migrateFromV1(s.budget) ?? createEmptyBudget();
-  // An unversioned or v8+ envelope handed here has no single budget to read.
-  return isValidBudget(s.budget) ? (s.budget as Budget) : createEmptyBudget();
+  const legacy =
+    s.version === 1
+      ? migrateFromV1(s.budget)
+      : s.version === 2 || s.version === 3
+        ? migrateFromV2OrV3(s.budget)
+        : typeof s.version === 'number'
+          ? migrateLater(s.budget)
+          : null;
+  if (legacy) return toBudget(legacy, today);
+  // An unversioned or list envelope handed here has no single budget to read.
+  return isValidBudget(s.budget) ? toBudget(s.budget as LegacyBudget, today) : createEmptyBudget();
 }
 
 export const DEFAULT_BUDGET_NAME = 'My budget';
@@ -231,7 +288,7 @@ export function readStore(value: unknown): StoredState {
   if (typeof s.version === 'number' && LIST_VERSIONS.includes(s.version) && Array.isArray(s.budgets)) {
     const budgets = s.budgets
       .filter(isValidEntry)
-      .map((entry) => ({ ...entry, budget: normaliseBudget(entry.budget) }));
+      .map((entry) => ({ ...entry, budget: toBudget(entry.budget as unknown as LegacyBudget) }));
     if (budgets.length === 0) return fresh();
     const activeId =
       typeof s.activeId === 'string' && budgets.some((b) => b.id === s.activeId)
@@ -240,7 +297,7 @@ export function readStore(value: unknown): StoredState {
     return { version: CURRENT_VERSION, activeId, budgets };
   }
 
-  const entry = makeEntry(DEFAULT_BUDGET_NAME, normaliseBudget(readBudget(value)));
+  const entry = makeEntry(DEFAULT_BUDGET_NAME, readBudget(value));
   return { version: CURRENT_VERSION, activeId: entry.id, budgets: [entry] };
 }
 
@@ -336,9 +393,29 @@ export function useBudget() {
     [setStored],
   );
 
-  const setIncome = useCallback(
-    (patch: Partial<Income>) => {
-      setBudget((prev) => ({ ...prev, income: { ...prev.income, ...patch } }));
+  const addIncome = useCallback(
+    (name: string, amount: number, frequency: Frequency) => {
+      setBudget((prev) => ({
+        ...prev,
+        incomes: [...prev.incomes, { id: generateId(), name, amount, frequency }],
+      }));
+    },
+    [setBudget],
+  );
+
+  const updateIncome = useCallback(
+    (id: string, patch: Partial<Omit<IncomeStream, 'id'>>) => {
+      setBudget((prev) => ({
+        ...prev,
+        incomes: prev.incomes.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)),
+      }));
+    },
+    [setBudget],
+  );
+
+  const removeIncome = useCallback(
+    (id: string) => {
+      setBudget((prev) => ({ ...prev, incomes: prev.incomes.filter((entry) => entry.id !== id) }));
     },
     [setBudget],
   );
@@ -401,100 +478,23 @@ export function useBudget() {
     [setBudget],
   );
 
-  const addGoal = useCallback(
-    (
-      name: string,
-      targetAmount: number,
-      currentSaved: number,
-      priority: number,
-      targetDate?: string,
-    ) => {
-      setBudget((prev) => ({
-        ...prev,
-        goals: [
-          ...prev.goals,
-          { id: generateId(), name, targetAmount, currentSaved, priority, targetDate },
-        ],
-      }));
-    },
-    [setBudget],
-  );
-
-  /**
-   * Moves one goal to the front of the queue and pushes everything else back a
-   * place, so it ends up alone at priority 1 rather than sharing (and halving)
-   * the money with whatever was already there. The numbers stay visible and
-   * editable afterwards — this is a shortcut, not a separate mode.
-   */
-  const prioritiseGoal = useCallback(
-    (id: string) => {
-      setBudget((prev) => ({
-        ...prev,
-        goals: prev.goals.map((goal) =>
-          goal.id === id ? { ...goal, priority: 1 } : { ...goal, priority: goal.priority + 1 },
-        ),
-      }));
-    },
-    [setBudget],
-  );
-
-  const updateGoal = useCallback(
-    (id: string, patch: Partial<Omit<Goal, 'id'>>) => {
-      setBudget((prev) => ({
-        ...prev,
-        goals: prev.goals.map((goal) => (goal.id === id ? { ...goal, ...patch } : goal)),
-      }));
-    },
-    [setBudget],
-  );
-
-  const removeGoal = useCallback(
-    (id: string) => {
-      setBudget((prev) => ({ ...prev, goals: prev.goals.filter((goal) => goal.id !== id) }));
-    },
-    [setBudget],
-  );
-
-  const addDebt = useCallback(
-    (debt: Omit<Debt, 'id'>) => {
-      setBudget((prev) => ({ ...prev, debts: [...prev.debts, { ...debt, id: generateId() }] }));
-    },
-    [setBudget],
-  );
-
-  const updateDebt = useCallback(
-    (id: string, patch: Partial<Omit<Debt, 'id'>>) => {
-      setBudget((prev) => ({
-        ...prev,
-        debts: prev.debts.map((debt) => (debt.id === id ? { ...debt, ...patch } : debt)),
-      }));
-    },
-    [setBudget],
-  );
-
-  const removeDebt = useCallback(
-    (id: string) => {
-      setBudget((prev) => ({ ...prev, debts: prev.debts.filter((debt) => debt.id !== id) }));
-    },
-    [setBudget],
-  );
-
-  /** Empties the active budget, keeping its name and the other budgets. */
   const resetBudget = useCallback(() => {
     setBudget(() => createEmptyBudget());
   }, [setBudget]);
 
   /**
-   * The active budget as a portable document. Exports stay single-budget and
-   * keep the version-7 envelope shape, so a file written here still opens in
-   * an older build — and carries its name so an import can restore it.
+   * The active budget as a portable document. Exports stay single-budget —
+   * one file, one budget — and carry the name so an import can restore it.
+   * Older exports still open: they go through the same migration chain as
+   * stored data, so a file written before goals and debts were retired comes
+   * back as the payments and one-offs those described.
    */
   const exportJson = useCallback(() => {
     const active = store.budgets.find((entry) => entry.id === store.activeId);
     return JSON.stringify(
       {
         app: 'tiny-budget',
-        version: 7,
+        version: CURRENT_VERSION,
         exportedAt: new Date().toISOString(),
         name: active?.name ?? DEFAULT_BUDGET_NAME,
         budget,
@@ -536,9 +536,8 @@ export function useBudget() {
       const migrated = readBudget(envelope);
       const looksEmpty =
         migrated.expenses.length === 0 &&
-        migrated.goals.length === 0 &&
-        migrated.debts.length === 0 &&
-        migrated.income.amount === 0 &&
+        migrated.incomes.length === 0 &&
+        migrated.oneOffs.length === 0 &&
         migrated.currentBalance === 0;
       const sourceHadContent = JSON.stringify(envelope.budget).length > 80;
       if (looksEmpty && sourceHadContent) {
@@ -565,85 +564,15 @@ export function useBudget() {
     [budget.expenses, today],
   );
 
-  const weeklyIncome = useMemo(() => weeklyIncomeAmount(budget.income), [budget.income]);
+  /** Only streams still running. An ended job would inflate income forever. */
+  const activeIncomes = useMemo(
+    () => budget.incomes.filter((entry) => isEntryActive(entry, today)),
+    [budget.incomes, today],
+  );
+
+  const weeklyIncome = useMemo(() => sumWeekly(activeIncomes), [activeIncomes]);
   const weeklyExpenses = useMemo(() => sumWeekly(activeExpenses), [activeExpenses]);
-  const weeklyLeftover = useMemo(
-    () => weeklyIncomeAmount(budget.income) - sumWeekly(activeExpenses),
-    [budget.income, activeExpenses],
-  );
-
-  // "Has debts" means money is still owed, not that rows exist. A list of
-  // settled debts is a debt-free budget, and must read as one.
-  const hasDebts = budget.debts.some((debt) => debt.balance > 0);
-
-  // Minimums come off the top — they're contractual, not discretionary. A
-  // settled debt owes no minimum however its row was left, so counting it
-  // would both overstate commitments and fake a shortfall.
-  const debtMinimums = useMemo(
-    () =>
-      budget.debts.reduce(
-        (sum, debt) => (debt.balance > 0 ? sum + Math.max(debt.minimumPayment, 0) : sum),
-        0,
-      ),
-    [budget.debts],
-  );
-
-  // Positive means the minimums cost more than there is to spend. The snowball
-  // assumes every minimum gets paid, so past this point its projection is
-  // describing money that isn't there — callers must say so rather than show a
-  // payoff date the user can't hit.
-  const budgetShortfall = Math.max(debtMinimums - weeklyLeftover, 0);
-  const postMinimum = Math.max(weeklyLeftover - debtMinimums, 0);
-
-  // Debt first, in full. Nothing is diverted to goals while money is owed, so
-  // everything above the minimums goes at the snowball.
-  const debtWeeklyExtra = hasDebts ? postMinimum : 0;
-
-  const snowball = useMemo(
-    () => simulateSnowball(budget.debts, debtWeeklyExtra, budget.currentBalance),
-    [budget.debts, debtWeeklyExtra, budget.currentBalance],
-  );
-
-  /**
-   * The week goals start receiving money: the day the last debt dies. Until
-   * then the snowball takes everything, so goals sit exactly where they are.
-   * null means there's no route out of debt, so goals never begin at all.
-   */
-  const goalStartWeek = hasDebts ? snowball.debtFreeWeek : 0;
-
-  // Once the debts are gone their minimums stop too, so the whole weekly
-  // leftover lands on goals.
-  const goalWeeklyRate = goalStartWeek === null ? 0 : weeklyLeftover;
-
-  // Debts get the cash first; goals only see what's left after every debt is
-  // cleared. With no debts this is the whole balance, exactly as before.
-  const goalFundingBalance = hasDebts ? snowball.lumpSumRemainder : budget.currentBalance;
-
-  const goalProgressById: Map<string, GoalProgress> = useMemo(() => {
-    const base = calculateGoalsProgress(budget.goals, goalWeeklyRate, goalFundingBalance);
-    if (goalStartWeek === null || goalStartWeek === 0) return base;
-    // The waterfall solves from week 0 at a constant rate, which is exactly
-    // what happens *after* the debts clear — so the whole schedule just shifts
-    // forward by the payoff date. Already-met goals aren't waiting on anything
-    // and must not be pushed into the future with the rest.
-    const shifted = new Map<string, GoalProgress>();
-    for (const [id, progress] of base) {
-      if (progress.status !== 'on-track' || progress.weeksRemaining === null) {
-        shifted.set(id, progress);
-        continue;
-      }
-      const weeks = progress.weeksRemaining + goalStartWeek;
-      shifted.set(id, { ...progress, weeksRemaining: weeks, monthsRemaining: weeks / WEEKS_PER_MONTH });
-    }
-    return shifted;
-  }, [budget.goals, goalWeeklyRate, goalFundingBalance, goalStartWeek]);
-
-  // What's actually spendable this week — $0 whenever a debt or a goal is
-  // still absorbing the whole leftover.
-  const freeLeftover = useMemo(
-    () => (hasDebts ? 0 : currentFreeLeftover(budget.goals, weeklyLeftover)),
-    [hasDebts, budget.goals, weeklyLeftover],
-  );
+  const weeklyLeftover = weeklyIncome - weeklyExpenses;
 
   return {
     budget,
@@ -651,19 +580,11 @@ export function useBudget() {
     weeklyExpenses,
     weeklyLeftover,
     activeExpenses,
+    activeIncomes,
+    addIncome,
+    updateIncome,
+    removeIncome,
     today,
-    freeLeftover,
-    goalProgressById,
-    hasDebts,
-    debtMinimums,
-    budgetShortfall,
-    postMinimum,
-    debtWeeklyExtra,
-    goalStartWeek,
-    goalWeeklyRate,
-    goalFundingBalance,
-    snowball,
-    setIncome,
     setCurrentBalance,
     addExpense,
     updateExpense,
@@ -671,13 +592,6 @@ export function useBudget() {
     addOneOff,
     updateOneOff,
     removeOneOff,
-    addGoal,
-    prioritiseGoal,
-    updateGoal,
-    removeGoal,
-    addDebt,
-    updateDebt,
-    removeDebt,
     resetBudget,
     budgets: store.budgets,
     activeBudgetId: store.activeId,
