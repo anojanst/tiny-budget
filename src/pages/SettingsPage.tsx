@@ -6,10 +6,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PageHeader } from '@/components/shell/PageHeader';
 import { WidgetHeading } from '@/components/WidgetHeading';
+import { Input } from '@/components/ui/input';
+import type { NamedBudget } from '@/types/budget';
 import { WEEKS_PER_MONTH } from '@/lib/budgetMath';
 import { THEMES } from '@/lib/themes';
 import { cn } from '@/lib/utils';
-import { Check, Download, Upload } from 'lucide-react';
+import { Check, Download, Plus, Trash2, Upload } from 'lucide-react';
 
 interface SettingsPageProps {
   onNewBudget: () => void;
@@ -18,6 +20,12 @@ interface SettingsPageProps {
   onThemeChange: (id: string) => void;
   exportJson: () => string;
   importJson: (text: string) => string | null;
+  budgets: NamedBudget[];
+  activeBudgetId: string;
+  onSwitchBudget: (id: string) => void;
+  onCreateBudget: () => void;
+  onRenameBudget: (id: string, name: string) => void;
+  onDeleteBudget: (id: string) => void;
 }
 
 export function SettingsPage({
@@ -27,11 +35,26 @@ export function SettingsPage({
   onThemeChange,
   exportJson,
   importJson,
+  budgets,
+  activeBudgetId,
+  onSwitchBudget,
+  onCreateBudget,
+  onRenameBudget,
+  onDeleteBudget,
 }: SettingsPageProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importedSummary, setImportedSummary] = useState<string | null>(null);
   const [pendingImport, setPendingImport] = useState<string | null>(null);
+  // The target outlives the open flag on purpose: clearing it on close would
+  // blank the dialog's title to Delete "" for the length of the exit animation.
+  const [deleteTarget, setDeleteTarget] = useState<NamedBudget | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const askDelete = (entry: NamedBudget) => {
+    setDeleteTarget(entry);
+    setDeleteOpen(true);
+  };
 
   const handleExport = () => {
     const blob = new Blob([exportJson()], { type: 'application/json' });
@@ -49,7 +72,7 @@ export function SettingsPage({
     setImportError(null);
     setImportedSummary(null);
     const text = await file.text();
-    // Held until confirmed: importing replaces everything already entered.
+    // Held until confirmed — it still changes which budget is selected.
     setPendingImport(text);
   };
 
@@ -61,7 +84,7 @@ export function SettingsPage({
       setImportError(error);
       return;
     }
-    setImportedSummary('Budget imported. Everything on the other pages now reflects that file.');
+    setImportedSummary('Imported as a new budget, and selected. Your others are unchanged.');
   };
 
   return (
@@ -69,6 +92,62 @@ export function SettingsPage({
       <PageHeader title="Settings" subtitle="Appearance, your data, and how the numbers work." />
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        <Card className="lg:col-span-2">
+          <WidgetHeading
+            title="Budgets"
+            description="Keep separate plans side by side — a household, a flat, a what-if. Only the selected one is shown across the app."
+            trailing={
+              <Button variant="outline" size="sm" onClick={onCreateBudget}>
+                <Plus className="size-4" />
+                New budget
+              </Button>
+            }
+          />
+          <CardContent>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {budgets.map((entry) => {
+                const isActive = entry.id === activeBudgetId;
+                return (
+                  <div
+                    key={entry.id}
+                    className={cn(
+                      'flex items-center gap-2 rounded-lg border p-2.5 transition-colors',
+                      isActive ? 'border-primary/40 bg-accent/40' : 'border-border',
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onSwitchBudget(entry.id)}
+                      aria-pressed={isActive}
+                      aria-label={`Switch to ${entry.name}`}
+                      className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border"
+                    >
+                      {isActive && <Check className="size-3 text-primary" />}
+                    </button>
+                    {/* Editable in place: renaming is the only thing anyone
+                        does to a budget here often enough to deserve a field. */}
+                    <Input
+                      value={entry.name}
+                      onChange={(e) => onRenameBudget(entry.id, e.target.value)}
+                      aria-label={`Name of ${entry.name}`}
+                      className="min-w-0 flex-1"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="shrink-0"
+                      aria-label={`Delete ${entry.name}`}
+                      onClick={() => askDelete(entry)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <WidgetHeading title="Theme" description="Sets the accent used across the app." />
           <CardContent>
@@ -113,7 +192,7 @@ export function SettingsPage({
               <div>
                 <p className="text-sm font-medium">Export a backup</p>
                 <p className="text-xs text-muted-foreground">
-                  Downloads a JSON file with your income, expenses, debts, and goals.
+                  Downloads the selected budget as a JSON file.
                 </p>
               </div>
               <Button variant="outline" size="sm" onClick={handleExport}>
@@ -128,7 +207,7 @@ export function SettingsPage({
               <div>
                 <p className="text-sm font-medium">Import a backup</p>
                 <p className="text-xs text-muted-foreground">
-                  Replaces everything currently in this browser. Older exports still work.
+                  Opens the file as an additional budget. Nothing you already have is touched.
                 </p>
               </div>
               <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
@@ -178,13 +257,14 @@ export function SettingsPage({
 
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium">Start a new budget</p>
+                <p className="text-sm font-medium">Empty this budget</p>
                 <p className="text-xs text-muted-foreground">
-                  Clears your income, expenses, debts, and goals. This can't be undone.
+                  Clears the selected budget's income, expenses, debts, and goals, keeping its
+                  name. Your other budgets are untouched.
                 </p>
               </div>
               <Button variant="destructive" size="sm" onClick={onNewBudget}>
-                Clear everything
+                Empty it
               </Button>
             </div>
           </CardContent>
@@ -222,10 +302,23 @@ export function SettingsPage({
         open={pendingImport !== null}
         onOpenChange={(open) => !open && setPendingImport(null)}
         title="Import this backup?"
-        description="This replaces the income, expenses, debts, and goals currently in this browser. It can't be undone — export a backup first if you want to keep them."
-        confirmLabel="Replace my budget"
-        destructive
+        description="It opens as an additional budget and becomes the selected one. Nothing you already have is changed."
+        confirmLabel="Import it"
         onConfirm={runImport}
+      />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Delete "${deleteTarget?.name ?? ''}"?`}
+        description={
+          budgets.length === 1
+            ? "This is your only budget, so deleting it leaves you with a fresh empty one. It can't be undone."
+            : "Its income, expenses, debts, and goals are removed for good. It can't be undone — export it first if you might want it back."
+        }
+        confirmLabel="Delete budget"
+        destructive
+        onConfirm={() => deleteTarget && onDeleteBudget(deleteTarget.id)}
       />
     </>
   );

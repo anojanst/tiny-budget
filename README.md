@@ -28,9 +28,13 @@ accounts, no data leaves the machine.
 - **Six themes** — one hue drives the brand colour, the greys, the borders and
   the chart palette together, so the whole app changes tone rather than just
   the buttons.
-- **Export and import** — your budget as a JSON file you can back up or carry
-  to another browser. Exports from older versions still open; they're migrated
-  on the way in.
+- **Several budgets at once** — a household, a flat, a what-if. Switch from the
+  sidebar; each keeps its own income, expenses, debts and goals. Manage, rename
+  and delete them in Settings.
+- **Export and import** — a budget as a JSON file you can back up or carry to
+  another browser. Importing opens the file as an *additional* budget, so it
+  never overwrites what you already have. Exports from older versions still
+  open; they're migrated on the way in.
 - **Weekly-normalized budgeting** — mix weekly and monthly amounts; everything
   is converted to a common weekly basis (`52 / 12` weeks per month).
 - **Priority waterfall for goals** — give each goal a priority number (lower

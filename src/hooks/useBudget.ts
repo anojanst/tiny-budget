@@ -12,14 +12,16 @@ import {
   type GoalProgress,
 } from '@/lib/budgetMath';
 import { simulateSnowball } from '@/lib/debtMath';
-import { createEmptyBudget, type Budget, type Debt, type ExpenseCategory, type Frequency, type Goal, type Income, type MoneyEntry } from '@/types/budget';
+import { createEmptyBudget, type Budget, type Debt, type ExpenseCategory, type Frequency, type Goal, type Income, type MoneyEntry, type NamedBudget } from '@/types/budget';
 
 const STORAGE_KEY = 'tiny-budget:v1';
-const CURRENT_VERSION = 7;
+const CURRENT_VERSION = 8;
 
-interface StoredBudget {
+interface StoredState {
   version: typeof CURRENT_VERSION;
-  budget: Budget;
+  /** Which budget the app is currently showing. Always present in `budgets`. */
+  activeId: string;
+  budgets: NamedBudget[];
 }
 
 function isValidBudget(value: unknown): value is Budget {
@@ -148,30 +150,155 @@ function migrateFromV6(value: unknown): Budget | null {
   };
 }
 
-function readBudget(value: unknown): Budget {
+/**
+ * One budget out of any envelope this app has ever written. Every version up
+ * to 7 stored exactly one budget under `.budget`; from 8 they live in a list,
+ * so this is only reached for the legacy shapes and for imported files.
+ */
+export function readBudget(value: unknown): Budget {
   if (!value || typeof value !== 'object') return createEmptyBudget();
   const s = value as { version?: unknown; budget?: unknown };
-  if (s.version === CURRENT_VERSION && isValidBudget(s.budget)) return s.budget;
+  if (s.version === 7 && isValidBudget(s.budget)) return s.budget;
   if (s.version === 6) return migrateFromV6(s.budget) ?? createEmptyBudget();
   if (s.version === 5) return migrateFromV5(s.budget) ?? createEmptyBudget();
   if (s.version === 4) return migrateFromV4(s.budget) ?? createEmptyBudget();
   if (s.version === 3 || s.version === 2) return migrateFromV2OrV3(s.budget) ?? createEmptyBudget();
   if (s.version === 1) return migrateFromV1(s.budget) ?? createEmptyBudget();
-  return createEmptyBudget();
+  // An unversioned or v8+ envelope handed here has no single budget to read.
+  return isValidBudget(s.budget) ? (s.budget as Budget) : createEmptyBudget();
 }
 
-const initialStoredBudget: StoredBudget = { version: CURRENT_VERSION, budget: createEmptyBudget() };
+export const DEFAULT_BUDGET_NAME = 'My budget';
+
+function makeEntry(name: string, budget: Budget): NamedBudget {
+  return { id: generateId(), name: name.trim() || DEFAULT_BUDGET_NAME, budget };
+}
+
+function isValidEntry(value: unknown): value is NamedBudget {
+  if (!value || typeof value !== 'object') return false;
+  const e = value as NamedBudget;
+  return typeof e.id === 'string' && typeof e.name === 'string' && isValidBudget(e.budget);
+}
+
+/**
+ * Reads the whole store. Versions 1–7 held a single budget; they become a
+ * one-entry list so nobody loses what they'd already entered when the app
+ * learned to hold several.
+ *
+ * Also repairs a store that's structurally intact but internally inconsistent
+ * — an empty list, or an `activeId` pointing at a budget that isn't there —
+ * because both would otherwise render an app with no budget at all.
+ */
+function readStore(value: unknown): StoredState {
+  const fresh = () => {
+    const entry = makeEntry(DEFAULT_BUDGET_NAME, createEmptyBudget());
+    return { version: CURRENT_VERSION, activeId: entry.id, budgets: [entry] } as StoredState;
+  };
+  if (!value || typeof value !== 'object') return fresh();
+  const s = value as { version?: unknown; activeId?: unknown; budgets?: unknown };
+
+  if (s.version === CURRENT_VERSION && Array.isArray(s.budgets)) {
+    const budgets = s.budgets.filter(isValidEntry);
+    if (budgets.length === 0) return fresh();
+    const activeId =
+      typeof s.activeId === 'string' && budgets.some((b) => b.id === s.activeId)
+        ? s.activeId
+        : budgets[0].id;
+    return { version: CURRENT_VERSION, activeId, budgets };
+  }
+
+  const entry = makeEntry(DEFAULT_BUDGET_NAME, readBudget(value));
+  return { version: CURRENT_VERSION, activeId: entry.id, budgets: [entry] };
+}
+
+const initialStoredState: StoredState = (() => {
+  const entry: NamedBudget = {
+    id: 'initial',
+    name: DEFAULT_BUDGET_NAME,
+    budget: createEmptyBudget(),
+  };
+  return { version: CURRENT_VERSION, activeId: entry.id, budgets: [entry] };
+})();
 
 export function useBudget() {
-  const [stored, setStored] = useLocalStorage<StoredBudget>(STORAGE_KEY, initialStoredBudget);
+  const [stored, setStored] = useLocalStorage<StoredState>(STORAGE_KEY, initialStoredState);
 
   // Memoized so migration/validation doesn't re-run on every render, and so
   // `budget` keeps a stable identity for the memoized children below it.
-  const budget: Budget = useMemo(() => readBudget(stored), [stored]);
+  const store: StoredState = useMemo(() => readStore(stored), [stored]);
+  const budget: Budget =
+    store.budgets.find((entry) => entry.id === store.activeId)?.budget ?? store.budgets[0].budget;
 
+  /** Every edit below lands on the active budget and leaves the rest alone. */
   const setBudget = useCallback(
     (updater: (prev: Budget) => Budget) => {
-      setStored((prev) => ({ version: CURRENT_VERSION, budget: updater(readBudget(prev)) }));
+      setStored((prev) => {
+        const current = readStore(prev);
+        return {
+          ...current,
+          budgets: current.budgets.map((entry) =>
+            entry.id === current.activeId ? { ...entry, budget: updater(entry.budget) } : entry,
+          ),
+        };
+      });
+    },
+    [setStored],
+  );
+
+  const switchBudget = useCallback(
+    (id: string) => {
+      setStored((prev) => {
+        const current = readStore(prev);
+        if (!current.budgets.some((entry) => entry.id === id)) return current;
+        return { ...current, activeId: id };
+      });
+    },
+    [setStored],
+  );
+
+  /** Creates an empty budget and switches to it. Returns nothing — the caller
+   * usually wants to send the user through setup next. */
+  const createBudget = useCallback(
+    (name: string) => {
+      setStored((prev) => {
+        const current = readStore(prev);
+        const entry = makeEntry(name, createEmptyBudget());
+        return { ...current, activeId: entry.id, budgets: [...current.budgets, entry] };
+      });
+    },
+    [setStored],
+  );
+
+  const renameBudget = useCallback(
+    (id: string, name: string) => {
+      setStored((prev) => {
+        const current = readStore(prev);
+        return {
+          ...current,
+          budgets: current.budgets.map((entry) =>
+            entry.id === id ? { ...entry, name: name.trim() || DEFAULT_BUDGET_NAME } : entry,
+          ),
+        };
+      });
+    },
+    [setStored],
+  );
+
+  /** Deleting the last budget leaves an empty one rather than no app at all. */
+  const deleteBudget = useCallback(
+    (id: string) => {
+      setStored((prev) => {
+        const current = readStore(prev);
+        const remaining = current.budgets.filter((entry) => entry.id !== id);
+        if (remaining.length === 0) {
+          const entry = makeEntry(DEFAULT_BUDGET_NAME, createEmptyBudget());
+          return { version: CURRENT_VERSION, activeId: entry.id, budgets: [entry] };
+        }
+        const activeId = remaining.some((entry) => entry.id === current.activeId)
+          ? current.activeId
+          : remaining[0].id;
+        return { ...current, activeId, budgets: remaining };
+      });
     },
     [setStored],
   );
@@ -265,25 +392,36 @@ export function useBudget() {
     [setBudget],
   );
 
+  /** Empties the active budget, keeping its name and the other budgets. */
   const resetBudget = useCallback(() => {
-    setStored({ version: CURRENT_VERSION, budget: createEmptyBudget() });
-  }, [setStored]);
-
-  /** The whole budget as a portable, human-readable document. */
-  const exportJson = useCallback(
-    () =>
-      JSON.stringify(
-        { app: 'tiny-budget', version: CURRENT_VERSION, exportedAt: new Date().toISOString(), budget },
-        null,
-        2,
-      ),
-    [budget],
-  );
+    setBudget(() => createEmptyBudget());
+  }, [setBudget]);
 
   /**
-   * Replaces everything with the contents of an exported file. Older exports
-   * are welcome: the text goes through the same migration chain as stored
-   * data, so a file written by any previous version still opens.
+   * The active budget as a portable document. Exports stay single-budget and
+   * keep the version-7 envelope shape, so a file written here still opens in
+   * an older build — and carries its name so an import can restore it.
+   */
+  const exportJson = useCallback(() => {
+    const active = store.budgets.find((entry) => entry.id === store.activeId);
+    return JSON.stringify(
+      {
+        app: 'tiny-budget',
+        version: 7,
+        exportedAt: new Date().toISOString(),
+        name: active?.name ?? DEFAULT_BUDGET_NAME,
+        budget,
+      },
+      null,
+      2,
+    );
+  }, [budget, store]);
+
+  /**
+   * Opens an exported file as a *new* budget rather than overwriting the one
+   * on screen — now that several can coexist, importing costs nothing and
+   * destroys nothing. Older exports are welcome: the text goes through the
+   * same migration chain as stored data.
    *
    * Returns an error string rather than throwing — a bad paste is a normal
    * thing for someone to do, not an exception.
@@ -299,7 +437,7 @@ export function useBudget() {
       if (!parsed || typeof parsed !== 'object') {
         return "That file doesn't look like a Tiny Budget export.";
       }
-      const envelope = parsed as { version?: unknown; budget?: unknown };
+      const envelope = parsed as { version?: unknown; budget?: unknown; name?: unknown };
       if (typeof envelope.version !== 'number' || !envelope.budget || typeof envelope.budget !== 'object') {
         return "That file doesn't look like a Tiny Budget export.";
       }
@@ -307,7 +445,7 @@ export function useBudget() {
         return 'That file was made by a newer version of Tiny Budget.';
       }
       // readBudget falls back to an empty budget for anything it can't parse,
-      // which would silently wipe the current one — so check first.
+      // so a file that reads as blank but wasn't is a failure, not an import.
       const migrated = readBudget(envelope);
       const looksEmpty =
         migrated.expenses.length === 0 &&
@@ -319,7 +457,12 @@ export function useBudget() {
       if (looksEmpty && sourceHadContent) {
         return "That file couldn't be read as a budget.";
       }
-      setStored({ version: CURRENT_VERSION, budget: migrated });
+      const name = typeof envelope.name === 'string' && envelope.name.trim() ? envelope.name : 'Imported budget';
+      setStored((prev) => {
+        const current = readStore(prev);
+        const entry = makeEntry(name, migrated);
+        return { ...current, activeId: entry.id, budgets: [...current.budgets, entry] };
+      });
       return null;
     },
     [setStored],
@@ -433,6 +576,12 @@ export function useBudget() {
     updateDebt,
     removeDebt,
     resetBudget,
+    budgets: store.budgets,
+    activeBudgetId: store.activeId,
+    switchBudget,
+    createBudget,
+    renameBudget,
+    deleteBudget,
     exportJson,
     importJson,
   };

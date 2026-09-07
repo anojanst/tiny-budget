@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { MobileNav } from '@/components/shell/MobileNav';
+import { BudgetSwitcher } from '@/components/shell/BudgetSwitcher';
 import { TimeMachine } from '@/components/TimeMachine';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { OnboardingWizard } from '@/components/OnboardingWizard';
@@ -36,6 +37,14 @@ function App() {
 
   const handleNewBudget = () => {
     budget.resetBudget();
+    onboarding.restart();
+    navigate('overview');
+  };
+
+  // A brand-new budget is empty, so it goes straight into setup rather than
+  // dropping you on a dashboard of zeroes.
+  const handleCreateBudget = () => {
+    budget.createBudget(`Budget ${budget.budgets.length + 1}`);
     onboarding.restart();
     navigate('overview');
   };
@@ -84,6 +93,14 @@ function App() {
           debtCount={budget.budget.debts.length}
           goalCount={budget.budget.goals.length}
           footer={timeMachinePanel}
+          switcher={
+            <BudgetSwitcher
+              budgets={budget.budgets}
+              activeId={budget.activeBudgetId}
+              onSwitch={budget.switchBudget}
+              onCreate={handleCreateBudget}
+            />
+          }
         />
       </div>
 
@@ -116,6 +133,12 @@ function App() {
               onThemeChange={theme.setThemeId}
               exportJson={budget.exportJson}
               importJson={budget.importJson}
+              budgets={budget.budgets}
+              activeBudgetId={budget.activeBudgetId}
+              onSwitchBudget={budget.switchBudget}
+              onCreateBudget={handleCreateBudget}
+              onRenameBudget={budget.renameBudget}
+              onDeleteBudget={budget.deleteBudget}
             />
           )}
 

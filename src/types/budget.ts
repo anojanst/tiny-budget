@@ -50,6 +50,16 @@ export interface Budget {
   currentBalance: number;
 }
 
+/**
+ * A budget plus the identity the app needs to keep several side by side —
+ * separate households, a "what if" copy, a partner's plan.
+ */
+export interface NamedBudget {
+  id: string;
+  name: string;
+  budget: Budget;
+}
+
 export const createEmptyBudget = (): Budget => ({
   income: { amount: 0, frequency: 'weekly' },
   expenses: [],

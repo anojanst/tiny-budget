@@ -28,9 +28,18 @@ interface SidebarProps {
   goalCount: number;
   /** Rendered at the foot of the nav — see TimeMachine for why it lives here. */
   footer?: ReactNode;
+  /** Budget switcher, directly under the logo. */
+  switcher?: ReactNode;
 }
 
-export function Sidebar({ route, onNavigate, debtCount, goalCount, footer }: SidebarProps) {
+export function Sidebar({
+  route,
+  onNavigate,
+  debtCount,
+  goalCount,
+  footer,
+  switcher,
+}: SidebarProps) {
   const menu: NavItem[] = [
     { route: 'overview', label: 'Overview', icon: LayoutDashboard },
     {
@@ -91,15 +100,18 @@ export function Sidebar({ route, onNavigate, debtCount, goalCount, footer }: Sid
   };
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col gap-6 border-r border-border bg-sidebar px-6 py-5">
-      <div className="flex items-center gap-2.5">
-        <span
-          aria-hidden
-          className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-        >
-          <PiggyBank className="size-4.5" />
-        </span>
-        <span className="text-base font-semibold tracking-tight">Tiny Budget</span>
+    <aside className="flex h-full w-60 shrink-0 flex-col gap-5 border-r border-border bg-sidebar px-6 py-5">
+      <div>
+        <div className="flex items-center gap-2.5">
+          <span
+            aria-hidden
+            className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
+          >
+            <PiggyBank className="size-4.5" />
+          </span>
+          <span className="text-base font-semibold tracking-tight">Tiny Budget</span>
+        </div>
+        {switcher && <div className="mt-3">{switcher}</div>}
       </div>
 
       <nav className="flex-1 space-y-6">
