@@ -21,6 +21,7 @@ export function GoalsPage({ budget, timeMachine }: GoalsPageProps) {
     goalFundingBalance,
     goalProgressById,
     addGoal,
+    prioritiseGoal,
     updateGoal,
     removeGoal,
   } = budget;
@@ -65,7 +66,9 @@ export function GoalsPage({ budget, timeMachine }: GoalsPageProps) {
           horizonLabel={horizonLabel}
           hasDebts={hasDebts}
           goalStartWeek={goalStartWeek}
+          today={timeMachine.today}
           onAdd={addGoal}
+          onPrioritise={prioritiseGoal}
           onUpdate={updateGoal}
           onRemove={removeGoal}
         />

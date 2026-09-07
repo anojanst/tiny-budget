@@ -31,6 +31,11 @@ accounts, no data leaves the machine.
 - **Several budgets at once** — a household, a flat, a what-if. Switch from the
   sidebar; each keeps its own income, expenses, debts and goals. Manage, rename
   and delete them in Settings.
+- **Deadlines on goals** — give a goal a "needed by" date and it tells you
+  whether the plan actually makes it, counting everything ahead of it including
+  the debt payoff. The date never reorders anything on its own: a nice-to-have
+  repair can carry a tighter deadline than an emergency fund, so a late goal
+  offers to jump the queue instead of doing it silently.
 - **Export and import** — a budget as a JSON file you can back up or carry to
   another browser. Importing opens the file as an *additional* budget, so it
   never overwrites what you already have. Exports from older versions still

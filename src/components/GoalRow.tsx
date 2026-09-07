@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { Goal } from '@/types/budget';
-import type { GoalAtDate, GoalProgress, GoalStatus } from '@/lib/budgetMath';
+import { checkGoalDeadline, type GoalAtDate, type GoalProgress, type GoalStatus } from '@/lib/budgetMath';
 import { formatCurrency, formatWeeksRemaining } from '@/lib/format';
+import { formatShortDate, parseLocalDate, weeksBetween } from '@/lib/dates';
 import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
+import { X, ArrowUp } from 'lucide-react';
 
 /** The bar's solid fill carries the goal's real state; the ghost behind it
  * (when present) is the Time Machine's projection for the selected date. */
@@ -27,6 +28,9 @@ interface GoalRowProps {
   horizonLabel?: string;
   /** Why nothing is reaching this goal — the cause differs while in debt. */
   unreachableHint: string;
+  today: Date;
+  /** Only offered when a dated goal is late and isn't already first. */
+  onPrioritise: (id: string) => void;
   onUpdate: (id: string, patch: Partial<Omit<Goal, 'id'>>) => void;
   onRemove: (id: string) => void;
 }
@@ -43,12 +47,23 @@ export const GoalRow = memo(function GoalRow({
   projection,
   horizonLabel,
   unreachableHint,
+  today,
+  onPrioritise,
   onUpdate,
   onRemove,
 }: GoalRowProps) {
   const currentPercent = progress.percentComplete;
   const projectedPercent = projection?.projectedPercent ?? currentPercent;
   const showsProjection = projectedPercent > currentPercent + 0.5;
+
+  const dueDate = goal.targetDate ? parseLocalDate(goal.targetDate) : null;
+  const deadline = dueDate
+    ? checkGoalDeadline(
+        progress.weeksRemaining,
+        weeksBetween(today, dueDate),
+        progress.status === 'met',
+      )
+    : null;
 
   return (
     <div className="flex h-full flex-col gap-3 rounded-xl border border-border bg-card p-4">
@@ -114,6 +129,18 @@ export const GoalRow = memo(function GoalRow({
         </label>
       </div>
 
+      {/* Optional by design: most goals have no deadline, and inventing one
+          would turn a wish into a fake commitment. */}
+      <label className="flex flex-col gap-1">
+        <span className="text-[0.7rem] text-muted-foreground">Needed by (optional)</span>
+        <Input
+          type="date"
+          value={goal.targetDate ?? ''}
+          onChange={(e) => onUpdate(goal.id, { targetDate: e.target.value || undefined })}
+          aria-label={`${goal.name || 'Goal'} target date`}
+        />
+      </label>
+
       <div className="flex items-center gap-3">
         <div
           role="progressbar"
@@ -172,6 +199,39 @@ export const GoalRow = memo(function GoalRow({
           <Alert variant="destructive">
             <AlertDescription>{unreachableHint}</AlertDescription>
           </Alert>
+        )}
+
+        {/* The whole point of the date: say plainly whether the plan makes it,
+            and offer the one lever that would change the answer. */}
+        {deadline?.verdict === 'on-time' && (
+          <p className="text-xs text-primary">
+            Makes {formatShortDate(dueDate!)}
+            {deadline.weeksSpare! >= 1 &&
+              ` with ${Math.floor(deadline.weeksSpare!)} week${Math.floor(deadline.weeksSpare!) === 1 ? '' : 's'} to spare`}
+            .
+          </p>
+        )}
+        {deadline?.verdict === 'late' && (
+          <div className="space-y-1">
+            <p className="text-xs text-destructive">
+              Misses {formatShortDate(dueDate!)} by {formatWeeksRemaining(deadline.weeksLate!)}.
+            </p>
+            {goal.priority > 1 && (
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={() => onPrioritise(goal.id)}
+              >
+                <ArrowUp className="size-3" />
+                Fund this first
+              </Button>
+            )}
+          </div>
+        )}
+        {deadline?.verdict === 'passed' && (
+          <p className="text-xs text-muted-foreground">
+            {formatShortDate(dueDate!)} has passed — clear the date or move it.
+          </p>
         )}
         {showsProjection && horizonLabel && (
           <p className="text-xs text-muted-foreground">

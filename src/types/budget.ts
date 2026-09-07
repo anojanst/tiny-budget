@@ -22,6 +22,15 @@ export interface Goal {
   currentSaved: number;
   /** Lower funds first, starting at 1. Goals sharing a number split the leftover. */
   priority: number;
+  /**
+   * Optional deadline, as a `yyyy-mm-dd` local date.
+   *
+   * Deliberately does *not* affect funding order. A dated goal isn't
+   * necessarily an important one — a nice-to-have repair can carry a tighter
+   * date than an emergency fund — so ordering stays under the user's control
+   * and the date is used to check the plan against reality instead.
+   */
+  targetDate?: string;
 }
 
 /**

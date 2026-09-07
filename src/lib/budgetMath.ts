@@ -33,6 +33,41 @@ export function currentFreeLeftover(goals: Goal[], weeklyLeftover: number): numb
   return hasUnmetGoal ? 0 : weeklyLeftover;
 }
 
+export type DeadlineVerdict = 'met' | 'on-time' | 'late' | 'unreachable' | 'passed';
+
+export interface DeadlineCheck {
+  verdict: DeadlineVerdict;
+  /** Weeks from today until the deadline. Negative once it's behind us. */
+  dueInWeeks: number;
+  /** Weeks the goal lands *after* its deadline. Only set when late. */
+  weeksLate: number | null;
+  /** Weeks to spare. Only set when it makes it. */
+  weeksSpare: number | null;
+}
+
+/**
+ * Does the plan get this goal funded in time?
+ *
+ * `weeksRemaining` already accounts for everything ahead of the goal —
+ * higher-priority goals, and the debt payoff it has to wait behind — so this
+ * is a straight comparison rather than a second model of the same thing.
+ */
+export function checkGoalDeadline(
+  weeksRemaining: number | null,
+  dueInWeeks: number,
+  isMet: boolean,
+): DeadlineCheck {
+  const base = { dueInWeeks, weeksLate: null, weeksSpare: null };
+  // Already saved: the deadline can't be missed, whenever it falls.
+  if (isMet) return { ...base, verdict: 'met' };
+  if (dueInWeeks < 0) return { ...base, verdict: 'passed' };
+  if (weeksRemaining === null) return { ...base, verdict: 'unreachable' };
+  if (weeksRemaining > dueInWeeks) {
+    return { ...base, verdict: 'late', weeksLate: weeksRemaining - dueInWeeks };
+  }
+  return { ...base, verdict: 'on-time', weeksSpare: dueInWeeks - weeksRemaining };
+}
+
 export type GoalStatus = 'met' | 'unreachable' | 'on-track';
 
 export interface GoalProgress {

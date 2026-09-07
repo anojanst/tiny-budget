@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildGoalSavingsSeries,
+  checkGoalDeadline,
   calculateGoalsProgress,
   calculateWeeklyLeftover,
   computeGoalCompletionWeeks,
@@ -226,6 +227,51 @@ describe('buildGoalSavingsSeries — delayed start', () => {
     const withZero = buildGoalSavingsSeries(goals, 100, 8, 0, 0).points;
     const withDefault = buildGoalSavingsSeries(goals, 100, 8, 0).points;
     expect(withZero).toEqual(withDefault);
+  });
+});
+
+describe('checkGoalDeadline', () => {
+  it('makes it with weeks to spare', () => {
+    const check = checkGoalDeadline(4, 10, false);
+    expect(check.verdict).toBe('on-time');
+    expect(check.weeksSpare).toBe(6);
+    expect(check.weeksLate).toBeNull();
+  });
+
+  it('reports exactly how late it lands', () => {
+    const check = checkGoalDeadline(12, 4, false);
+    expect(check.verdict).toBe('late');
+    expect(check.weeksLate).toBe(8);
+  });
+
+  it('counts landing exactly on the deadline as on time', () => {
+    const check = checkGoalDeadline(6, 6, false);
+    expect(check.verdict).toBe('on-time');
+    expect(check.weeksSpare).toBe(0);
+  });
+
+  it('is met regardless of the date once the money is already saved', () => {
+    // Including a deadline that has already gone by — you still have the money.
+    expect(checkGoalDeadline(0, -5, true).verdict).toBe('met');
+    expect(checkGoalDeadline(0, 3, true).verdict).toBe('met');
+  });
+
+  it('flags a deadline that has already passed', () => {
+    expect(checkGoalDeadline(4, -1, false).verdict).toBe('passed');
+  });
+
+  it('is unreachable when nothing is funding the goal at all', () => {
+    const check = checkGoalDeadline(null, 8, false);
+    expect(check.verdict).toBe('unreachable');
+    expect(check.weeksLate).toBeNull();
+  });
+
+  it('accounts for a debt payoff the goal waits behind', () => {
+    // weeksRemaining already includes the 17-week debt offset, so a goal
+    // needed in 4 weeks is 13 weeks late rather than appearing achievable.
+    const check = checkGoalDeadline(17, 4, false);
+    expect(check.verdict).toBe('late');
+    expect(check.weeksLate).toBe(13);
   });
 });
 

@@ -17,7 +17,15 @@ interface GoalsSectionProps {
   /** Drives the "why isn't this moving" copy, which differs while in debt. */
   hasDebts: boolean;
   goalStartWeek: number | null;
-  onAdd: (name: string, targetAmount: number, currentSaved: number, priority: number) => void;
+  today: Date;
+  onAdd: (
+    name: string,
+    targetAmount: number,
+    currentSaved: number,
+    priority: number,
+    targetDate?: string,
+  ) => void;
+  onPrioritise: (id: string) => void;
   onUpdate: (id: string, patch: Partial<Omit<Goal, 'id'>>) => void;
   onRemove: (id: string) => void;
 }
@@ -29,13 +37,16 @@ export function GoalsSection({
   horizonLabel,
   hasDebts,
   goalStartWeek,
+  today,
   onAdd,
+  onPrioritise,
   onUpdate,
   onRemove,
 }: GoalsSectionProps) {
   const [name, setName] = useState('');
   const [target, setTarget] = useState('');
   const [priority, setPriority] = useState('1');
+  const [dueDate, setDueDate] = useState('');
 
   // Lower priority number first, so the order on screen matches who gets
   // funded first. Ties keep their original order (Array#sort is stable).
@@ -58,10 +69,11 @@ export function GoalsSection({
     const parsedTarget = Number(target);
     const parsedPriority = Math.max(1, Math.round(Number(priority)) || 1);
     if (!name.trim() || !Number.isFinite(parsedTarget) || parsedTarget <= 0) return;
-    onAdd(name.trim(), parsedTarget, 0, parsedPriority);
+    onAdd(name.trim(), parsedTarget, 0, parsedPriority, dueDate || undefined);
     setName('');
     setTarget('');
     setPriority('1');
+    setDueDate('');
   };
 
   return (
@@ -103,6 +115,8 @@ export function GoalsSection({
                   projection={projectionById.get(goal.id)}
                   horizonLabel={horizonLabel}
                   unreachableHint={unreachableHint}
+                  today={today}
+                  onPrioritise={onPrioritise}
                   onUpdate={onUpdate}
                   onRemove={onRemove}
                 />
@@ -144,6 +158,14 @@ export function GoalsSection({
           placeholder="Target amount"
           className="w-32"
           onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+        />
+        <Input
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+          aria-label="Needed by (optional)"
+          title="Needed by (optional)"
+          className="w-40"
         />
         <Button size="sm" onClick={handleAdd}>
           <Plus className="size-4" />

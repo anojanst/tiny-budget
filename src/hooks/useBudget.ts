@@ -342,10 +342,37 @@ export function useBudget() {
   );
 
   const addGoal = useCallback(
-    (name: string, targetAmount: number, currentSaved: number, priority: number) => {
+    (
+      name: string,
+      targetAmount: number,
+      currentSaved: number,
+      priority: number,
+      targetDate?: string,
+    ) => {
       setBudget((prev) => ({
         ...prev,
-        goals: [...prev.goals, { id: generateId(), name, targetAmount, currentSaved, priority }],
+        goals: [
+          ...prev.goals,
+          { id: generateId(), name, targetAmount, currentSaved, priority, targetDate },
+        ],
+      }));
+    },
+    [setBudget],
+  );
+
+  /**
+   * Moves one goal to the front of the queue and pushes everything else back a
+   * place, so it ends up alone at priority 1 rather than sharing (and halving)
+   * the money with whatever was already there. The numbers stay visible and
+   * editable afterwards — this is a shortcut, not a separate mode.
+   */
+  const prioritiseGoal = useCallback(
+    (id: string) => {
+      setBudget((prev) => ({
+        ...prev,
+        goals: prev.goals.map((goal) =>
+          goal.id === id ? { ...goal, priority: 1 } : { ...goal, priority: goal.priority + 1 },
+        ),
       }));
     },
     [setBudget],
@@ -570,6 +597,7 @@ export function useBudget() {
     updateExpense,
     removeExpense,
     addGoal,
+    prioritiseGoal,
     updateGoal,
     removeGoal,
     addDebt,
