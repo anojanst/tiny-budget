@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildCashflowDays } from './calendar';
-import type { Income, MoneyEntry } from '@/types/budget';
+import type { Income, MoneyEntry, OneOff } from '@/types/budget';
 
 const noDebt = () => 0;
 const from = new Date(2026, 0, 1); // Thu 1 Jan 2026
@@ -283,7 +283,14 @@ describe('buildCashflowDays — debt and shortfalls', () => {
 });
 
 describe('buildCashflowDays — one-off payments', () => {
-  const oneOff = (over = {}) => ({ id: 'o1', name: 'Headphones', amount: 300, date: '2026-01-15', ...over });
+  const oneOff = (over: Partial<OneOff> = {}): OneOff => ({
+    id: 'o1',
+    name: 'Headphones',
+    amount: 300,
+    date: '2026-01-15',
+    direction: 'out',
+    ...over,
+  });
 
   it('charges a one-off on its date and never again', () => {
     const days = buildCashflowDays({
@@ -301,6 +308,7 @@ describe('buildCashflowDays — one-off payments', () => {
     expect(days[14].bills).toEqual([
       { id: 'o1', name: 'Headphones', amount: 300, oneOff: true },
     ]);
+    expect(days[14].credits).toEqual([]);
     expect(days[14].balance).toBe(700);
     // The whole point of "one-off": a month later it has not come round again.
     expect(days[40].balance).toBe(700);
@@ -355,5 +363,84 @@ describe('buildCashflowDays — one-off payments', () => {
     });
     expect(days[14].bills.map((b) => b.name).sort()).toEqual(['Headphones', 'Rent']);
     expect(days[14].balance).toBe(1200);
+  });
+});
+
+describe('buildCashflowDays — one-off money in', () => {
+  const refund = (over: Partial<OneOff> = {}): OneOff => ({
+    id: 'i1',
+    name: 'Tax refund',
+    amount: 1200,
+    date: '2026-01-15',
+    direction: 'in',
+    ...over,
+  });
+
+  it('adds a windfall on its date without calling it a payday', () => {
+    const days = buildCashflowDays({
+      from,
+      through: day(40),
+      startingBalance: 100,
+      income: income({ amount: 0 }),
+      nextPayday: null,
+      expenses: [],
+      oneOffs: [refund()],
+      cumulativeDebtSpend: noDebt,
+    });
+    expect(days[13].balance).toBe(100);
+    expect(days[14].credits).toEqual([{ id: 'i1', name: 'Tax refund', amount: 1200 }]);
+    expect(days[14].balance).toBe(1300);
+    // A single windfall is not a recurring pay, and must never be counted as
+    // one — otherwise the "paydays this month" figure quietly inflates.
+    expect(days[14].isPayday).toBe(false);
+    expect(days[14].incoming).toBe(0);
+    // And it happens once.
+    expect(days[40].balance).toBe(1300);
+  });
+
+  it('nets an in and an out landing on the same day', () => {
+    const days = buildCashflowDays({
+      from,
+      through: day(20),
+      startingBalance: 0,
+      income: income({ amount: 0 }),
+      nextPayday: null,
+      expenses: [],
+      oneOffs: [refund(), { id: 'o1', name: 'Headphones', amount: 300, date: '2026-01-15', direction: 'out' }],
+      cumulativeDebtSpend: noDebt,
+    });
+    expect(days[14].credits).toHaveLength(1);
+    expect(days[14].bills).toHaveLength(1);
+    expect(days[14].balance).toBe(900);
+  });
+
+  it('ignores a windfall already in the past', () => {
+    const days = buildCashflowDays({
+      from,
+      through: day(10),
+      startingBalance: 100,
+      income: income({ amount: 0 }),
+      nextPayday: null,
+      expenses: [],
+      oneOffs: [refund({ date: '2025-12-20' })],
+      cumulativeDebtSpend: noDebt,
+    });
+    expect(days.every((d) => d.credits.length === 0)).toBe(true);
+    expect(days[10].balance).toBe(100);
+  });
+
+  it('lets a windfall rescue a day that would otherwise go short', () => {
+    const base = {
+      from,
+      through: day(20),
+      startingBalance: 100,
+      income: income({ amount: 0 }),
+      nextPayday: null,
+      expenses: [],
+      cumulativeDebtSpend: noDebt,
+    };
+    const bill: OneOff = { id: 'o1', name: 'Headphones', amount: 300, date: '2026-01-15', direction: 'out' };
+    expect(buildCashflowDays({ ...base, oneOffs: [bill] })[14].short).toBe(true);
+    expect(buildCashflowDays({ ...base, oneOffs: [bill, refund()] })[14].short).toBe(false);
   });
 });

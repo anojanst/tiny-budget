@@ -90,7 +90,9 @@ export function CalendarPage({ budget }: CalendarPageProps) {
   );
   const paydaysThisMonth = monthDays.filter((d) => d.isPayday);
   const monthEvents = monthDays.filter(
-    (d) => (d.isPayday || d.bills.length > 0) && d.date.getTime() >= today.getTime(),
+    (d) =>
+      (d.isPayday || d.bills.length > 0 || d.credits.length > 0) &&
+      d.date.getTime() >= today.getTime(),
   );
   const lowest = monthDays.reduce<null | (typeof monthDays)[number]>(
     (min, d) => (min === null || d.balance < min.balance ? d : min),
@@ -235,7 +237,7 @@ export function CalendarPage({ budget }: CalendarPageProps) {
                     inMonth ? 'border-border' : 'border-transparent',
                     !inMonth && 'opacity-40',
                     isPast && 'bg-muted/40',
-                    entry?.isPayday ? 'border-primary/40 bg-accent/40' : undefined,
+                    (entry?.isPayday || entry?.credits.length) ? 'border-primary/40 bg-accent/40' : undefined,
                     entry?.short && 'border-destructive/50 bg-destructive/5',
                   )}
                 >
@@ -256,7 +258,9 @@ export function CalendarPage({ budget }: CalendarPageProps) {
                           figures collapse to dots and the list underneath
                           carries the detail instead. */}
                       <span className="flex gap-1 sm:hidden" aria-hidden>
-                        {entry.isPayday && <span className="size-1.5 rounded-full bg-primary" />}
+                        {(entry.isPayday || entry.credits.length > 0) && (
+                          <span className="size-1.5 rounded-full bg-primary" />
+                        )}
                         {entry.bills.length > 0 && (
                           <span className="size-1.5 rounded-full bg-muted-foreground" />
                         )}
@@ -268,6 +272,15 @@ export function CalendarPage({ budget }: CalendarPageProps) {
                             +{formatCurrency(entry.incoming)}
                           </span>
                         )}
+                        {entry.credits.map((credit) => (
+                          <span
+                            key={credit.id}
+                            className="truncate text-[0.7rem] font-medium text-primary"
+                            title={`${credit.name} +${formatCurrency(credit.amount)} (one-off)`}
+                          >
+                            +{formatCurrency(credit.amount)} {credit.name}
+                          </span>
+                        ))}
                         {entry.bills.map((bill) => (
                           <span
                             key={bill.id}
@@ -283,7 +296,7 @@ export function CalendarPage({ budget }: CalendarPageProps) {
                         {/* The balance is the whole point, so it anchors the
                             cell — but only on days something actually happened,
                             or every square would be a wall of numbers. */}
-                        {(entry.isPayday || entry.bills.length > 0) && (
+                        {(entry.isPayday || entry.bills.length > 0 || entry.credits.length > 0) && (
                           <span
                             className={cn(
                               'mt-auto text-xs font-semibold tabular-nums',
@@ -316,7 +329,13 @@ export function CalendarPage({ budget }: CalendarPageProps) {
                         Payday +{formatCurrency(entry.incoming)}
                       </span>
                     )}
-                    {entry.isPayday && entry.bills.length > 0 && (
+                    {entry.credits.map((credit, i) => (
+                      <span key={credit.id} className="font-medium text-primary">
+                        {(entry.isPayday || i > 0) && ' · '}
+                        {credit.name} +{formatCurrency(credit.amount)}
+                      </span>
+                    ))}
+                    {(entry.isPayday || entry.credits.length > 0) && entry.bills.length > 0 && (
                       <span className="text-muted-foreground"> · </span>
                     )}
                     {entry.bills.map((bill, i) => (

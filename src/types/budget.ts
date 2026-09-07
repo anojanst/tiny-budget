@@ -71,28 +71,35 @@ export interface Debt {
 }
 
 /**
- * A single dated payment — a headphone this month, a flight in March.
+ * A single dated movement of money — a headphone bought this month, a tax
+ * refund landing next week.
  *
- * Deliberately not an expense and not a goal. An expense is a *rate*: it
- * recurs, so it earns a weekly set-aside and permanently lowers what's spare.
- * A goal is money being *accumulated* toward a target. A one-off is neither —
- * it's a single event that empties some cash on one day and is then over, so
- * it must not inflate the weekly figures for the rest of time.
+ * Deliberately not an expense, an income, or a goal. Those are all *rates*:
+ * they recur, so they earn a weekly figure and shift what's spare from now
+ * until forever. A one-off is a single event that moves cash on one day and is
+ * then over, so it must not touch any weekly figure — a bonus that arrives
+ * once shouldn't read as a permanent pay rise any more than a one-time
+ * purchase should read as a permanent bill.
  */
 export interface OneOff {
   id: string;
   name: string;
+  /** Always positive; `direction` carries the sign. */
   amount: number;
-  /** When it will be paid, as a `yyyy-mm-dd` local date. */
+  /** When the money moves, as a `yyyy-mm-dd` local date. */
   date: string;
+  /** `out` for a payment, `in` for money arriving — a refund, a bonus, a sale. */
+  direction: OneOffDirection;
 }
+
+export type OneOffDirection = 'in' | 'out';
 
 export interface Budget {
   income: Income;
   expenses: ExpenseCategory[];
   goals: Goal[];
   debts: Debt[];
-  /** Planned one-off payments. Dated events, not weekly rates — see `OneOff`. */
+  /** Planned one-off payments and windfalls. Dated events, not rates — see `OneOff`. */
   oneOffs: OneOff[];
   /**
    * Cash on hand right now, never negative — debt is the `debts` list, not a

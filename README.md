@@ -51,13 +51,14 @@ accounts, no data leaves the machine.
   it stops counting — the calendar needs a date to place a bill on a day
   rather than smearing it across the week. The fields are behind a per-row
   toggle so twenty undated rows cost no extra height.
-- **One-off payments** — a headphone this month, a flight in March. Deliberately
-  neither an expense nor a goal: an expense is a *rate* that recurs and lowers
-  what's spare every week from now on, and a goal is money being accumulated
-  toward a target. A one-off is a single dated event that empties some cash on
-  one day and is then over, so it shows up on the calendar without inflating
-  any weekly figure. Dates already past are ignored — that money is already
-  inside your current balance.
+- **One-offs, in and out** — a headphone bought this month, a tax refund
+  landing next week. Deliberately not an expense, an income, or a goal: those
+  are all *rates* that recur and shift what's spare from now until forever,
+  and a goal is money being accumulated toward a target. A one-off is a single
+  dated event that moves cash on one day and is then over, so it shows on the
+  calendar without touching any weekly figure — a bonus that arrives once
+  never reads as a permanent pay rise, and never counts as a payday. Dates
+  already past are ignored; that money has already moved.
 - **Priority waterfall for goals** — give each goal a priority number (lower
   funds first). Goals sharing a number split the leftover evenly; a tier only
   starts receiving money once every goal ahead of it is fully funded, and a

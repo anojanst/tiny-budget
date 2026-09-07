@@ -143,10 +143,34 @@ describe('readStore — the multi-budget envelope', () => {
     expect(store.budgets[1].budget.oneOffs).toEqual([]);
   });
 
-  it('preserves one-offs already stored at v9', () => {
-    const oneOffs = [{ id: 'o1', name: 'Headphones', amount: 300, date: '2026-09-30' }];
+  it('treats a v9 one-off with no direction as an outgoing payment', () => {
+    // v9 could only express payments, so a missing direction is not ambiguous
+    // — but leaving it undefined would make the calendar file it as income.
     const store = readStore({
       version: 9,
+      activeId: 'b1',
+      budgets: [
+        {
+          id: 'b1',
+          name: 'Household',
+          budget: {
+            ...v8Budget,
+            oneOffs: [{ id: 'o1', name: 'Headphones', amount: 300, date: '2026-09-30' }],
+          },
+        },
+      ],
+    });
+    expect(store.budgets[0].budget.oneOffs).toEqual([
+      { id: 'o1', name: 'Headphones', amount: 300, date: '2026-09-30', direction: 'out' },
+    ]);
+  });
+
+  it('preserves a direction already stored at v10', () => {
+    const oneOffs = [
+      { id: 'o1', name: 'Tax refund', amount: 1200, date: '2026-09-30', direction: 'in' },
+    ];
+    const store = readStore({
+      version: 10,
       activeId: 'b1',
       budgets: [{ id: 'b1', name: 'Household', budget: { ...v8Budget, oneOffs } }],
     });

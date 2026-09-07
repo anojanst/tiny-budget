@@ -13,10 +13,10 @@ import {
 } from '@/lib/budgetMath';
 import { simulateSnowball } from '@/lib/debtMath';
 import { startOfToday } from '@/lib/dates';
-import { createEmptyBudget, type Budget, type Debt, type ExpenseCategory, type Frequency, type Goal, type Income, type MoneyEntry, type NamedBudget, type OneOff } from '@/types/budget';
+import { createEmptyBudget, type Budget, type Debt, type ExpenseCategory, type Frequency, type Goal, type Income, type MoneyEntry, type NamedBudget, type OneOff, type OneOffDirection } from '@/types/budget';
 
 const STORAGE_KEY = 'tiny-budget:v1';
-const CURRENT_VERSION = 9;
+const CURRENT_VERSION = 10;
 
 /**
  * Every version that stored budgets as a *list*. A newer version must never
@@ -25,7 +25,7 @@ const CURRENT_VERSION = 9;
  * wiping every budget the user has. Adding a field means adding the old
  * version here and defaulting the field in `normaliseBudget`.
  */
-const LIST_VERSIONS: readonly number[] = [8, 9];
+const LIST_VERSIONS: readonly number[] = [8, 9, 10];
 
 interface StoredState {
   version: typeof CURRENT_VERSION;
@@ -55,7 +55,13 @@ function isValidBudget(value: unknown): value is Budget {
  * for being out of date rather than being broken.
  */
 function normaliseBudget(budget: Budget): Budget {
-  return { ...budget, oneOffs: Array.isArray(budget.oneOffs) ? budget.oneOffs : [] };
+  const oneOffs = Array.isArray(budget.oneOffs) ? budget.oneOffs : [];
+  return {
+    ...budget,
+    // One-offs could only be payments before v10, so an entry without a
+    // direction is an outgoing one.
+    oneOffs: oneOffs.map((item) => ({ ...item, direction: item.direction ?? 'out' })),
+  };
 }
 
 /** Goals from before priority existed all start equal, at 1. */
@@ -369,10 +375,10 @@ export function useBudget() {
   );
 
   const addOneOff = useCallback(
-    (name: string, amount: number, date: string) => {
+    (name: string, amount: number, date: string, direction: OneOffDirection) => {
       setBudget((prev) => ({
         ...prev,
-        oneOffs: [...prev.oneOffs, { id: generateId(), name, amount, date }],
+        oneOffs: [...prev.oneOffs, { id: generateId(), name, amount, date, direction }],
       }));
     },
     [setBudget],

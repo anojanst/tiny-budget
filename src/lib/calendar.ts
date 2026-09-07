@@ -19,15 +19,28 @@ export interface CalendarBill {
   oneOff?: boolean;
 }
 
+/** A one-off arriving — a refund, a bonus, something sold. */
+export interface CalendarCredit {
+  id: string;
+  name: string;
+  amount: number;
+}
+
 export interface CalendarDay {
   /** Local date this cell represents. */
   date: Date;
   /** `yyyy-mm-dd`, for keying and lookups. */
   key: string;
-  /** Money in that day. Zero except on paydays. */
+  /**
+   * Regular income that day — the pay itself, or the spread rate standing in
+   * for it when no payday is set. One-off windfalls are `credits`, kept apart
+   * so a single bonus never reads as a recurring payday.
+   */
   incoming: number;
   /** True when `incoming` is a real dated payday rather than a spread rate. */
   isPayday: boolean;
+  /** One-off money arriving that day. */
+  credits: CalendarCredit[];
   /** Dated bills falling due that day. */
   bills: CalendarBill[];
   /** Projected cash on hand at the end of the day. */
@@ -142,15 +155,22 @@ export function buildCashflowDays({
   }
 
   // A one-off is a single event: it lands on its day and is then done. Dates
-  // already behind us are skipped — that money is spent, and whatever it left
-  // is already reflected in the balance the projection starts from.
+  // already behind us are skipped — that money has already moved, and the
+  // balance the projection starts from reflects it either way.
+  const creditsByDay = new Map<string, CalendarCredit[]>();
   for (const item of oneOffs) {
     const when = parseLocalDate(item.date);
     if (!when || when.getTime() < start.getTime() || when.getTime() > end.getTime()) continue;
     const key = toDateInputValue(when);
-    const list = billsByDay.get(key) ?? [];
-    list.push({ id: item.id, name: item.name || 'One-off', amount: item.amount, oneOff: true });
-    billsByDay.set(key, list);
+    if (item.direction === 'in') {
+      const list = creditsByDay.get(key) ?? [];
+      list.push({ id: item.id, name: item.name || 'One-off', amount: item.amount });
+      creditsByDay.set(key, list);
+    } else {
+      const list = billsByDay.get(key) ?? [];
+      list.push({ id: item.id, name: item.name || 'One-off', amount: item.amount, oneOff: true });
+      billsByDay.set(key, list);
+    }
   }
 
   const paydayKeys = new Set(
@@ -178,11 +198,13 @@ export function buildCashflowDays({
 
     const bills = billsByDay.get(key) ?? [];
     const billTotal = bills.reduce((sum, bill) => sum + bill.amount, 0);
+    const credits = creditsByDay.get(key) ?? [];
+    const creditTotal = credits.reduce((sum, credit) => sum + credit.amount, 0);
     const isPayday = paydayKeys.has(key);
     const incoming = isPayday ? income.amount : incomeDrip;
 
-    balance += incoming - dailyDrip - debtToday - billTotal;
-    days.push({ date, key, incoming, isPayday, bills, balance, short: balance < 0 });
+    balance += incoming + creditTotal - dailyDrip - debtToday - billTotal;
+    days.push({ date, key, incoming, isPayday, credits, bills, balance, short: balance < 0 });
   }
 
   return days;
