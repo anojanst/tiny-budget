@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageHeader } from '@/components/shell/PageHeader';
 import { StatCard } from '@/components/StatCard';
+import { OneOffSection } from '@/components/OneOffSection';
 import { buildCashflowDays } from '@/lib/calendar';
 import { debtSpendAtWeek } from '@/lib/debtMath';
 import { formatCurrency } from '@/lib/format';
@@ -29,7 +30,8 @@ interface CalendarPageProps {
 }
 
 export function CalendarPage({ budget }: CalendarPageProps) {
-  const { budget: data, today, snowball, hasDebts, setIncome } = budget;
+  const { budget: data, today, snowball, hasDebts, setIncome, addOneOff, updateOneOff, removeOneOff } =
+    budget;
   const [monthOffset, setMonthOffset] = useState(0);
 
   const visibleMonth = useMemo(() => addMonths(startOfMonth(today), monthOffset), [today, monthOffset]);
@@ -46,9 +48,20 @@ export function CalendarPage({ budget }: CalendarPageProps) {
         income: data.income,
         nextPayday,
         expenses: data.expenses,
+        oneOffs: data.oneOffs,
         cumulativeDebtSpend: (weeks) => (hasDebts ? debtSpendAtWeek(snowball, weeks) : 0),
       }),
-    [today, monthOffset, data.currentBalance, data.income, data.expenses, nextPayday, hasDebts, snowball],
+    [
+      today,
+      monthOffset,
+      data.currentBalance,
+      data.income,
+      data.expenses,
+      data.oneOffs,
+      nextPayday,
+      hasDebts,
+      snowball,
+    ],
   );
 
   const byKey = useMemo(() => new Map(days.map((d) => [d.key, d])), [days]);
@@ -258,8 +271,11 @@ export function CalendarPage({ budget }: CalendarPageProps) {
                         {entry.bills.map((bill) => (
                           <span
                             key={bill.id}
-                            className="truncate text-[0.7rem] text-muted-foreground"
-                            title={`${bill.name} ${formatCurrency(bill.amount)}`}
+                            className={cn(
+                              'truncate text-[0.7rem]',
+                              bill.oneOff ? 'font-medium text-foreground' : 'text-muted-foreground',
+                            )}
+                            title={`${bill.name} ${formatCurrency(bill.amount)}${bill.oneOff ? ' (one-off)' : ''}`}
                           >
                             −{formatCurrency(bill.amount)} {bill.name}
                           </span>
@@ -324,6 +340,16 @@ export function CalendarPage({ budget }: CalendarPageProps) {
           )}
         </CardContent>
       </Card>
+
+      <div className="mt-4">
+        <OneOffSection
+          oneOffs={data.oneOffs}
+          today={today}
+          onAdd={addOneOff}
+          onUpdate={updateOneOff}
+          onRemove={removeOneOff}
+        />
+      </div>
     </>
   );
 }

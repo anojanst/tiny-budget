@@ -1,4 +1,4 @@
-import type { Income, MoneyEntry } from '@/types/budget';
+import type { Income, MoneyEntry, OneOff } from '@/types/budget';
 import { isEntryActive, toWeeklyAmount, weeklyIncomeAmount } from '@/lib/budgetMath';
 import { advanceByFrequency, parseLocalDate, startOfDay, toDateInputValue } from '@/lib/dates';
 
@@ -15,6 +15,8 @@ export interface CalendarBill {
   id: string;
   name: string;
   amount: number;
+  /** A single dated payment rather than an instance of a recurring bill. */
+  oneOff?: boolean;
 }
 
 export interface CalendarDay {
@@ -47,6 +49,12 @@ interface CashflowInput {
    */
   nextPayday: Date | null;
   expenses: MoneyEntry[];
+  /**
+   * Planned single payments. They carry no weekly rate anywhere else in the
+   * app — a one-off purchase shouldn't lower what's spare every week forever —
+   * so the calendar is the only place their cost actually shows up.
+   */
+  oneOffs: OneOff[];
   /**
    * Cumulative cash paid to debts by a given number of weeks from `from`.
    * Passed in rather than recomputed so the calendar and the payoff page can
@@ -102,6 +110,7 @@ export function buildCashflowDays({
   income,
   nextPayday,
   expenses,
+  oneOffs,
   cumulativeDebtSpend,
 }: CashflowInput): CalendarDay[] {
   const start = startOfDay(from);
@@ -130,6 +139,18 @@ export function buildCashflowDays({
       list.push({ id: entry.id, name: entry.name || 'Untitled', amount: entry.amount });
       billsByDay.set(key, list);
     }
+  }
+
+  // A one-off is a single event: it lands on its day and is then done. Dates
+  // already behind us are skipped — that money is spent, and whatever it left
+  // is already reflected in the balance the projection starts from.
+  for (const item of oneOffs) {
+    const when = parseLocalDate(item.date);
+    if (!when || when.getTime() < start.getTime() || when.getTime() > end.getTime()) continue;
+    const key = toDateInputValue(when);
+    const list = billsByDay.get(key) ?? [];
+    list.push({ id: item.id, name: item.name || 'One-off', amount: item.amount, oneOff: true });
+    billsByDay.set(key, list);
   }
 
   const paydayKeys = new Set(

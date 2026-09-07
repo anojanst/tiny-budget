@@ -70,11 +70,30 @@ export interface Debt {
   minimumPayment: number;
 }
 
+/**
+ * A single dated payment — a headphone this month, a flight in March.
+ *
+ * Deliberately not an expense and not a goal. An expense is a *rate*: it
+ * recurs, so it earns a weekly set-aside and permanently lowers what's spare.
+ * A goal is money being *accumulated* toward a target. A one-off is neither —
+ * it's a single event that empties some cash on one day and is then over, so
+ * it must not inflate the weekly figures for the rest of time.
+ */
+export interface OneOff {
+  id: string;
+  name: string;
+  amount: number;
+  /** When it will be paid, as a `yyyy-mm-dd` local date. */
+  date: string;
+}
+
 export interface Budget {
   income: Income;
   expenses: ExpenseCategory[];
   goals: Goal[];
   debts: Debt[];
+  /** Planned one-off payments. Dated events, not weekly rates — see `OneOff`. */
+  oneOffs: OneOff[];
   /**
    * Cash on hand right now, never negative — debt is the `debts` list, not a
    * negative balance. Funds debts first when any exist, goals otherwise.
@@ -97,5 +116,6 @@ export const createEmptyBudget = (): Budget => ({
   expenses: [],
   goals: [],
   debts: [],
+  oneOffs: [],
   currentBalance: 0,
 });

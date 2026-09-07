@@ -13,10 +13,19 @@ import {
 } from '@/lib/budgetMath';
 import { simulateSnowball } from '@/lib/debtMath';
 import { startOfToday } from '@/lib/dates';
-import { createEmptyBudget, type Budget, type Debt, type ExpenseCategory, type Frequency, type Goal, type Income, type MoneyEntry, type NamedBudget } from '@/types/budget';
+import { createEmptyBudget, type Budget, type Debt, type ExpenseCategory, type Frequency, type Goal, type Income, type MoneyEntry, type NamedBudget, type OneOff } from '@/types/budget';
 
 const STORAGE_KEY = 'tiny-budget:v1';
-const CURRENT_VERSION = 8;
+const CURRENT_VERSION = 9;
+
+/**
+ * Every version that stored budgets as a *list*. A newer version must never
+ * simply fail the equality check below and fall through to `readBudget`: that
+ * path expects a single `.budget` and would hand back an empty one, silently
+ * wiping every budget the user has. Adding a field means adding the old
+ * version here and defaulting the field in `normaliseBudget`.
+ */
+const LIST_VERSIONS: readonly number[] = [8, 9];
 
 interface StoredState {
   version: typeof CURRENT_VERSION;
@@ -37,6 +46,16 @@ function isValidBudget(value: unknown): value is Budget {
     Array.isArray(b.debts) &&
     typeof b.currentBalance === 'number'
   );
+}
+
+/**
+ * Fills in anything added since a stored budget was written. Kept separate
+ * from `isValidBudget` on purpose: validation must not require a field that
+ * older-but-perfectly-good data can't have, or the budget gets thrown away
+ * for being out of date rather than being broken.
+ */
+function normaliseBudget(budget: Budget): Budget {
+  return { ...budget, oneOffs: Array.isArray(budget.oneOffs) ? budget.oneOffs : [] };
 }
 
 /** Goals from before priority existed all start equal, at 1. */
@@ -67,6 +86,7 @@ function migrateFromV1(value: unknown): Budget | null {
     expenses: b.expenses as ExpenseCategory[],
     goals: withDefaultPriority(b.goals),
     debts: [],
+    oneOffs: [],
     currentBalance: 0,
   };
 }
@@ -84,6 +104,7 @@ function migrateFromV2OrV3(value: unknown): Budget | null {
     expenses: b.expenses as ExpenseCategory[],
     goals: withDefaultPriority(b.goals),
     debts: [],
+    oneOffs: [],
     currentBalance: 0,
   };
 }
@@ -103,6 +124,7 @@ function migrateFromV4(value: unknown): Budget | null {
     expenses: b.expenses as ExpenseCategory[],
     goals: withDefaultPriority(b.goals),
     debts: [],
+    oneOffs: [],
     currentBalance: Math.max(typeof b.currentBalance === 'number' ? b.currentBalance : 0, 0),
   };
 }
@@ -129,6 +151,7 @@ function migrateFromV5(value: unknown): Budget | null {
     expenses: b.expenses as ExpenseCategory[],
     goals: withDefaultPriority(b.goals),
     debts,
+    oneOffs: [],
     currentBalance: Math.max(b.currentBalance ?? 0, 0),
   };
 }
@@ -147,6 +170,7 @@ function migrateFromV6(value: unknown): Budget | null {
     expenses: b.expenses as ExpenseCategory[],
     goals: withDefaultPriority(b.goals),
     debts: Array.isArray(b.debts) ? (b.debts as Debt[]) : [],
+    oneOffs: [],
     currentBalance: Math.max(b.currentBalance ?? 0, 0),
   };
 }
@@ -190,7 +214,7 @@ function isValidEntry(value: unknown): value is NamedBudget {
  * — an empty list, or an `activeId` pointing at a budget that isn't there —
  * because both would otherwise render an app with no budget at all.
  */
-function readStore(value: unknown): StoredState {
+export function readStore(value: unknown): StoredState {
   const fresh = () => {
     const entry = makeEntry(DEFAULT_BUDGET_NAME, createEmptyBudget());
     return { version: CURRENT_VERSION, activeId: entry.id, budgets: [entry] } as StoredState;
@@ -198,8 +222,10 @@ function readStore(value: unknown): StoredState {
   if (!value || typeof value !== 'object') return fresh();
   const s = value as { version?: unknown; activeId?: unknown; budgets?: unknown };
 
-  if (s.version === CURRENT_VERSION && Array.isArray(s.budgets)) {
-    const budgets = s.budgets.filter(isValidEntry);
+  if (typeof s.version === 'number' && LIST_VERSIONS.includes(s.version) && Array.isArray(s.budgets)) {
+    const budgets = s.budgets
+      .filter(isValidEntry)
+      .map((entry) => ({ ...entry, budget: normaliseBudget(entry.budget) }));
     if (budgets.length === 0) return fresh();
     const activeId =
       typeof s.activeId === 'string' && budgets.some((b) => b.id === s.activeId)
@@ -208,7 +234,7 @@ function readStore(value: unknown): StoredState {
     return { version: CURRENT_VERSION, activeId, budgets };
   }
 
-  const entry = makeEntry(DEFAULT_BUDGET_NAME, readBudget(value));
+  const entry = makeEntry(DEFAULT_BUDGET_NAME, normaliseBudget(readBudget(value)));
   return { version: CURRENT_VERSION, activeId: entry.id, budgets: [entry] };
 }
 
@@ -338,6 +364,33 @@ export function useBudget() {
   const removeExpense = useCallback(
     (id: string) => {
       setBudget((prev) => ({ ...prev, expenses: prev.expenses.filter((entry) => entry.id !== id) }));
+    },
+    [setBudget],
+  );
+
+  const addOneOff = useCallback(
+    (name: string, amount: number, date: string) => {
+      setBudget((prev) => ({
+        ...prev,
+        oneOffs: [...prev.oneOffs, { id: generateId(), name, amount, date }],
+      }));
+    },
+    [setBudget],
+  );
+
+  const updateOneOff = useCallback(
+    (id: string, patch: Partial<Omit<OneOff, 'id'>>) => {
+      setBudget((prev) => ({
+        ...prev,
+        oneOffs: prev.oneOffs.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)),
+      }));
+    },
+    [setBudget],
+  );
+
+  const removeOneOff = useCallback(
+    (id: string) => {
+      setBudget((prev) => ({ ...prev, oneOffs: prev.oneOffs.filter((entry) => entry.id !== id) }));
     },
     [setBudget],
   );
@@ -609,6 +662,9 @@ export function useBudget() {
     addExpense,
     updateExpense,
     removeExpense,
+    addOneOff,
+    updateOneOff,
+    removeOneOff,
     addGoal,
     prioritiseGoal,
     updateGoal,

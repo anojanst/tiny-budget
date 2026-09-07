@@ -21,6 +21,7 @@ describe('buildCashflowDays — paydays', () => {
       income: income({ amount: 1400, frequency: 'fortnightly' }),
       nextPayday: day(3),
       expenses: [],
+      oneOffs: [],
       cumulativeDebtSpend: noDebt,
     });
     expect(days[3].incoming).toBe(1400);
@@ -39,6 +40,7 @@ describe('buildCashflowDays — paydays', () => {
       income: income(),
       nextPayday: null,
       expenses: [],
+      oneOffs: [],
       cumulativeDebtSpend: noDebt,
     });
     // Nothing is a dated payday...
@@ -56,6 +58,7 @@ describe('buildCashflowDays — paydays', () => {
       startingBalance: 500,
       income: income(),
       expenses: [],
+      oneOffs: [],
       cumulativeDebtSpend: noDebt,
     };
     const dated = buildCashflowDays({ ...args, nextPayday: day(3) });
@@ -73,6 +76,7 @@ describe('buildCashflowDays — paydays', () => {
       income: income({ amount: 3000, frequency: 'monthly' }),
       nextPayday: new Date(2026, 0, 20),
       expenses: [],
+      oneOffs: [],
       cumulativeDebtSpend: noDebt,
     });
     const paydays = days.filter((d) => d.incoming > 0).map((d) => d.key);
@@ -91,6 +95,7 @@ describe('buildCashflowDays — expenses', () => {
       income: income({ amount: 0 }),
       nextPayday: null,
       expenses: [weeklyFood],
+      oneOffs: [],
       cumulativeDebtSpend: noDebt,
     });
     // $70/wk is $10/day, so a week takes exactly $70.
@@ -113,6 +118,7 @@ describe('buildCashflowDays — expenses', () => {
       income: income({ amount: 0 }),
       nextPayday: null,
       expenses: [bill],
+      oneOffs: [],
       cumulativeDebtSpend: noDebt,
     });
     expect(days[3].balance).toBeCloseTo(1000);
@@ -139,6 +145,7 @@ describe('buildCashflowDays — expenses', () => {
       income: income({ amount: 0 }),
       nextPayday: null,
       expenses: [bill],
+      oneOffs: [],
       cumulativeDebtSpend: noDebt,
     });
     // The single occurrence in range takes exactly its own amount, no more.
@@ -160,6 +167,7 @@ describe('buildCashflowDays — expenses', () => {
       income: income({ amount: 0 }),
       nextPayday: null,
       expenses: [bill],
+      oneOffs: [],
       cumulativeDebtSpend: noDebt,
     });
     const billDays = days.filter((d) => d.bills.length > 0).map((d) => d.key);
@@ -182,6 +190,7 @@ describe('buildCashflowDays — expenses', () => {
       income: income({ amount: 0 }),
       nextPayday: null,
       expenses: [bill],
+      oneOffs: [],
       cumulativeDebtSpend: noDebt,
     });
     expect(days.filter((d) => d.bills.length > 0).map((d) => d.key)).toEqual([
@@ -205,6 +214,7 @@ describe('buildCashflowDays — expenses', () => {
       income: income({ amount: 0 }),
       nextPayday: null,
       expenses: [gone],
+      oneOffs: [],
       cumulativeDebtSpend: noDebt,
     });
     expect(days[6].balance).toBeCloseTo(100);
@@ -223,6 +233,7 @@ describe('buildCashflowDays — debt and shortfalls', () => {
       income: income({ amount: 0 }),
       nextPayday: null,
       expenses: [],
+      oneOffs: [],
       cumulativeDebtSpend: cumulative,
     });
     // Day 6 is only six-sevenths of a week in, so $60 of the $70 has gone.
@@ -246,6 +257,7 @@ describe('buildCashflowDays — debt and shortfalls', () => {
       income: income({ amount: 800, frequency: 'weekly' }),
       nextPayday: day(6),
       expenses: [bill],
+      oneOffs: [],
       cumulativeDebtSpend: noDebt,
     });
     // Short from the bill landing on the 3rd until payday on the 7th.
@@ -263,8 +275,85 @@ describe('buildCashflowDays — debt and shortfalls', () => {
         income: income(),
         nextPayday: null,
         expenses: [],
-        cumulativeDebtSpend: noDebt,
+        oneOffs: [],
+      cumulativeDebtSpend: noDebt,
       }),
     ).toEqual([]);
+  });
+});
+
+describe('buildCashflowDays — one-off payments', () => {
+  const oneOff = (over = {}) => ({ id: 'o1', name: 'Headphones', amount: 300, date: '2026-01-15', ...over });
+
+  it('charges a one-off on its date and never again', () => {
+    const days = buildCashflowDays({
+      from,
+      through: day(40),
+      startingBalance: 1000,
+      income: income({ amount: 0 }),
+      nextPayday: null,
+      expenses: [],
+      oneOffs: [oneOff()],
+      cumulativeDebtSpend: noDebt,
+    });
+    // 15 Jan is offset 14.
+    expect(days[13].balance).toBe(1000);
+    expect(days[14].bills).toEqual([
+      { id: 'o1', name: 'Headphones', amount: 300, oneOff: true },
+    ]);
+    expect(days[14].balance).toBe(700);
+    // The whole point of "one-off": a month later it has not come round again.
+    expect(days[40].balance).toBe(700);
+    expect(days.filter((d) => d.bills.length > 0)).toHaveLength(1);
+  });
+
+  it('ignores a one-off already in the past', () => {
+    const days = buildCashflowDays({
+      from,
+      through: day(10),
+      startingBalance: 1000,
+      income: income({ amount: 0 }),
+      nextPayday: null,
+      expenses: [],
+      // Money already spent is inside the starting balance; charging it again
+      // would take it twice.
+      oneOffs: [oneOff({ date: '2025-12-20' })],
+      cumulativeDebtSpend: noDebt,
+    });
+    expect(days.every((d) => d.bills.length === 0)).toBe(true);
+    expect(days[10].balance).toBe(1000);
+  });
+
+  it('flags the day a one-off pushes the balance negative', () => {
+    const days = buildCashflowDays({
+      from,
+      through: day(20),
+      startingBalance: 100,
+      income: income({ amount: 0 }),
+      nextPayday: null,
+      expenses: [],
+      oneOffs: [oneOff()],
+      cumulativeDebtSpend: noDebt,
+    });
+    expect(days[13].short).toBe(false);
+    expect(days[14].short).toBe(true);
+    expect(days[14].balance).toBe(-200);
+  });
+
+  it('keeps one-offs alongside a recurring bill on the same day', () => {
+    const days = buildCashflowDays({
+      from,
+      through: day(20),
+      startingBalance: 2000,
+      income: income({ amount: 0 }),
+      nextPayday: null,
+      expenses: [
+        { id: 'r', name: 'Rent', amount: 500, frequency: 'monthly', nextDue: '2026-01-15' },
+      ],
+      oneOffs: [oneOff()],
+      cumulativeDebtSpend: noDebt,
+    });
+    expect(days[14].bills.map((b) => b.name).sort()).toEqual(['Headphones', 'Rent']);
+    expect(days[14].balance).toBe(1200);
   });
 });
