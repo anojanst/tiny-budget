@@ -75,9 +75,9 @@ export function CalendarPage({ budget }: CalendarPageProps) {
   const monthDays = days.filter(
     (d) => d.date.getMonth() === visibleMonth.getMonth() && d.date.getFullYear() === visibleMonth.getFullYear(),
   );
-  const paydaysThisMonth = monthDays.filter((d) => d.incoming > 0);
+  const paydaysThisMonth = monthDays.filter((d) => d.isPayday);
   const monthEvents = monthDays.filter(
-    (d) => (d.incoming > 0 || d.bills.length > 0) && d.date.getTime() >= today.getTime(),
+    (d) => (d.isPayday || d.bills.length > 0) && d.date.getTime() >= today.getTime(),
   );
   const lowest = monthDays.reduce<null | (typeof monthDays)[number]>(
     (min, d) => (min === null || d.balance < min.balance ? d : min),
@@ -222,7 +222,7 @@ export function CalendarPage({ budget }: CalendarPageProps) {
                     inMonth ? 'border-border' : 'border-transparent',
                     !inMonth && 'opacity-40',
                     isPast && 'bg-muted/40',
-                    entry?.incoming ? 'border-primary/40 bg-accent/40' : undefined,
+                    entry?.isPayday ? 'border-primary/40 bg-accent/40' : undefined,
                     entry?.short && 'border-destructive/50 bg-destructive/5',
                   )}
                 >
@@ -243,16 +243,14 @@ export function CalendarPage({ budget }: CalendarPageProps) {
                           figures collapse to dots and the list underneath
                           carries the detail instead. */}
                       <span className="flex gap-1 sm:hidden" aria-hidden>
-                        {entry.incoming > 0 && (
-                          <span className="size-1.5 rounded-full bg-primary" />
-                        )}
+                        {entry.isPayday && <span className="size-1.5 rounded-full bg-primary" />}
                         {entry.bills.length > 0 && (
                           <span className="size-1.5 rounded-full bg-muted-foreground" />
                         )}
                       </span>
 
                       <span className="hidden sm:contents">
-                        {entry.incoming > 0 && (
+                        {entry.isPayday && (
                           <span className="text-[0.7rem] font-medium text-primary tabular-nums">
                             +{formatCurrency(entry.incoming)}
                           </span>
@@ -269,7 +267,7 @@ export function CalendarPage({ budget }: CalendarPageProps) {
                         {/* The balance is the whole point, so it anchors the
                             cell — but only on days something actually happened,
                             or every square would be a wall of numbers. */}
-                        {(entry.incoming > 0 || entry.bills.length > 0) && (
+                        {(entry.isPayday || entry.bills.length > 0) && (
                           <span
                             className={cn(
                               'mt-auto text-xs font-semibold tabular-nums',
@@ -297,12 +295,12 @@ export function CalendarPage({ budget }: CalendarPageProps) {
                     {entry.date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
                   </span>
                   <span className="min-w-0 flex-1">
-                    {entry.incoming > 0 && (
+                    {entry.isPayday && (
                       <span className="font-medium text-primary">
                         Payday +{formatCurrency(entry.incoming)}
                       </span>
                     )}
-                    {entry.incoming > 0 && entry.bills.length > 0 && (
+                    {entry.isPayday && entry.bills.length > 0 && (
                       <span className="text-muted-foreground"> · </span>
                     )}
                     {entry.bills.map((bill, i) => (

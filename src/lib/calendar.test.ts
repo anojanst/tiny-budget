@@ -31,7 +31,7 @@ describe('buildCashflowDays — paydays', () => {
     expect(days[17].balance).toBe(2800);
   });
 
-  it('marks no paydays at all without an anchor', () => {
+  it('marks no paydays without an anchor, but still earns the income', () => {
     const days = buildCashflowDays({
       from,
       through: day(30),
@@ -41,8 +41,28 @@ describe('buildCashflowDays — paydays', () => {
       expenses: [],
       cumulativeDebtSpend: noDebt,
     });
-    expect(days.every((d) => d.incoming === 0)).toBe(true);
-    expect(days[30].balance).toBe(500);
+    // Nothing is a dated payday...
+    expect(days.every((d) => !d.isPayday)).toBe(true);
+    // ...but $700/wk still arrives, spread across the days. Dropping it
+    // instead would make the balance fall forever while undated expenses kept
+    // draining, painting a healthy budget entirely red.
+    expect(days[30].balance).toBeCloseTo(500 + (700 / 7) * 31, 6);
+  });
+
+  it('does not double-count income once an anchor exists', () => {
+    const args = {
+      from,
+      through: day(30),
+      startingBalance: 500,
+      income: income(),
+      expenses: [],
+      cumulativeDebtSpend: noDebt,
+    };
+    const dated = buildCashflowDays({ ...args, nextPayday: day(3) });
+    // Four weekly pays land on days 3/10/17/24; the drip must be switched off,
+    // or the same money would be counted twice.
+    expect(dated.filter((d) => d.isPayday)).toHaveLength(4);
+    expect(dated[30].balance).toBe(500 + 700 * 4);
   });
 
   it('keeps a monthly payday on the same day of the month', () => {

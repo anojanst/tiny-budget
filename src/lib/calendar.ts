@@ -1,5 +1,5 @@
 import type { Income, MoneyEntry } from '@/types/budget';
-import { isEntryActive, toWeeklyAmount } from '@/lib/budgetMath';
+import { isEntryActive, toWeeklyAmount, weeklyIncomeAmount } from '@/lib/budgetMath';
 import { advanceByFrequency, parseLocalDate, startOfDay, toDateInputValue } from '@/lib/dates';
 
 /**
@@ -24,6 +24,8 @@ export interface CalendarDay {
   key: string;
   /** Money in that day. Zero except on paydays. */
   incoming: number;
+  /** True when `incoming` is a real dated payday rather than a spread rate. */
+  isPayday: boolean;
   /** Dated bills falling due that day. */
   bills: CalendarBill[];
   /** Projected cash on hand at the end of the day. */
@@ -39,7 +41,10 @@ interface CashflowInput {
   through: Date;
   startingBalance: number;
   income: Income;
-  /** Anchor for the pay cycle. Without one there are no paydays to mark. */
+  /**
+   * Anchor for the pay cycle. Without one, income can't be dated, so it is
+   * spread as a daily rate instead — see the note in `buildCashflowDays`.
+   */
   nextPayday: Date | null;
   expenses: MoneyEntry[];
   /**
@@ -83,6 +88,12 @@ function occurrencesWithin(
  * that date as a lump; everything else is spread evenly across the days it
  * covers. An entry is never counted both ways — doing so would silently
  * double-charge exactly the bills the user took the trouble to date.
+ *
+ * Income gets the same treatment, and must: dating the money going out while
+ * leaving the money coming in undated makes the balance fall every single day
+ * and paints the whole calendar red no matter how healthy the budget is. With
+ * no payday anchor, income is spread at its weekly rate exactly like an
+ * undated expense, so an unconfigured calendar reads flat rather than doomed.
  */
 export function buildCashflowDays({
   from,
@@ -128,6 +139,7 @@ export function buildCashflowDays({
         )
       : [],
   );
+  const incomeDrip = nextPayday ? 0 : weeklyIncomeAmount(income) / 7;
 
   const days: CalendarDay[] = [];
   let balance = startingBalance;
@@ -145,10 +157,11 @@ export function buildCashflowDays({
 
     const bills = billsByDay.get(key) ?? [];
     const billTotal = bills.reduce((sum, bill) => sum + bill.amount, 0);
-    const incoming = paydayKeys.has(key) ? income.amount : 0;
+    const isPayday = paydayKeys.has(key);
+    const incoming = isPayday ? income.amount : incomeDrip;
 
     balance += incoming - dailyDrip - debtToday - billTotal;
-    days.push({ date, key, incoming, bills, balance, short: balance < 0 });
+    days.push({ date, key, incoming, isPayday, bills, balance, short: balance < 0 });
   }
 
   return days;

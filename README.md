@@ -46,8 +46,11 @@ accounts, no data leaves the machine.
 - **Recurring bills are reserved, not saved for** — a $600 half-yearly
   insurance is $23.08/wk taken off the top, *before* debts and goals, because
   money you're contractually required to pay isn't spare. Quarterly and longer
-  cycles also take an optional next-due date (which rolls forward on its own)
-  and an end date, after which they stop counting.
+  cycles open their date fields by default, but *any* expense can carry a
+  next-due date (which rolls forward on its own) and an end date, after which
+  it stops counting — the calendar needs a date to place a bill on a day
+  rather than smearing it across the week. The fields are behind a per-row
+  toggle so twenty undated rows cost no extra height.
 - **Priority waterfall for goals** — give each goal a priority number (lower
   funds first). Goals sharing a number split the leftover evenly; a tier only
   starts receiving money once every goal ahead of it is fully funded, and a
@@ -62,7 +65,10 @@ accounts, no data leaves the machine.
   between have gone out. This is a *dated cashflow* rather than the weekly
   rates the rest of the app uses: a budget that balances on average can still
   leave you short the week a half-yearly premium arrives, and only a calendar
-  shows that. Days that go negative are flagged.
+  shows that. Days that go negative are flagged. Undated money — income before
+  you've set a payday, expenses without a due date — is spread at its weekly
+  rate rather than ignored, so an unconfigured calendar reads flat instead of
+  bleeding to red.
 - **Live charts** — a pie of where income goes, and a stacked-area projection
   where each goal is its own band that visibly flattens the week it's funded.
 

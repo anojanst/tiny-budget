@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { CategoryCombobox } from '@/components/ui/category-combobox';
@@ -9,7 +9,7 @@ import { formatCurrency } from '@/lib/format';
 import { isEntryActive, isLumpySchedule, nextDueOccurrence, toWeeklyAmount } from '@/lib/budgetMath';
 import { formatShortDate, weeksBetween } from '@/lib/dates';
 import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
+import { CalendarDays, X } from 'lucide-react';
 
 interface MoneyEntryRowProps {
   entry: MoneyEntry;
@@ -23,9 +23,13 @@ interface MoneyEntryRowProps {
  * out to. A real budget runs to twenty-odd categories, and every pixel of row
  * height is multiplied by twenty.
  *
- * The schedule line only appears for lumpy cycles — quarterly and longer —
- * where the amount you set aside weekly and the date it's actually wanted are
- * different facts. A weekly grocery shop needs neither.
+ * Every expense can carry a due date — the calendar needs one to place a bill
+ * on a day rather than smearing it across the week. But a second line on all
+ * twenty rows costs more vertical space than the whole card has, so the line
+ * is revealed per row by the calendar toggle. It opens by itself for lumpy
+ * cycles — quarterly and longer, where the weekly set-aside and the date it's
+ * actually wanted are different facts — and for any row already carrying a
+ * date, so nothing anyone has entered can hide behind a closed toggle.
  */
 export const MoneyEntryRow = memo(function MoneyEntryRow({
   entry,
@@ -34,7 +38,12 @@ export const MoneyEntryRow = memo(function MoneyEntryRow({
   onRemove,
 }: MoneyEntryRowProps) {
   const weekly = toWeeklyAmount(entry.amount, entry.frequency);
-  const showsSchedule = isLumpySchedule(entry.frequency) || !!entry.nextDue || !!entry.endDate;
+  // Null means "not decided" — the line then follows the frequency, so
+  // switching a row to quarterly opens it without the user asking. Once they
+  // do ask either way, their choice sticks.
+  const [override, setOverride] = useState<boolean | null>(null);
+  const hasDates = !!entry.nextDue || !!entry.endDate;
+  const showsSchedule = hasDates || (override ?? isLumpySchedule(entry.frequency));
   const due = nextDueOccurrence(entry, today);
   const dueInWeeks = due ? Math.max(Math.round(weeksBetween(today, due)), 0) : null;
   // An ended commitment is kept on screen so it can be edited or revived, but
@@ -78,6 +87,20 @@ export const MoneyEntryRow = memo(function MoneyEntryRow({
         >
           {formatCurrency(weekly)}
         </span>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className={cn('shrink-0', showsSchedule ? 'text-primary' : 'text-muted-foreground')}
+          aria-label={`${showsSchedule ? 'Hide' : 'Set'} dates for ${entry.name || 'entry'}`}
+          aria-expanded={showsSchedule}
+          // A row holding a date has nothing to collapse to — hiding it would
+          // hide the data. A row with none is free to close, lumpy or not.
+          onClick={() => setOverride(!showsSchedule)}
+          disabled={hasDates}
+          title={hasDates ? 'Clear the dates to hide this' : 'Next due and end dates'}
+        >
+          <CalendarDays className="size-4" />
+        </Button>
         <Button
           variant="ghost"
           size="icon-sm"
