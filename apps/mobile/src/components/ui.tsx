@@ -8,7 +8,10 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { radius, space, type as t, usePalette } from '../theme';
+
+export type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
 
 export function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
   const p = usePalette();
@@ -134,12 +137,12 @@ export function Button({
  * at a glance rather than becoming three identical grey circles.
  */
 export function QuickAction({
-  glyph,
+  icon,
   label,
   tint,
   onPress,
 }: {
-  glyph: string;
+  icon: IconName;
   label: string;
   tint: 'brand' | 'mint' | 'peach' | 'slate';
   onPress: () => void;
@@ -156,9 +159,9 @@ export function QuickAction({
       style={({ pressed }) => [styles.quick, { opacity: pressed ? 0.6 : 1 }]}
     >
       <View style={[styles.quickDisc, { backgroundColor: wash }]}>
-        <Text style={{ color: ink, fontSize: 19, fontWeight: '600' }}>{glyph}</Text>
+        <MaterialCommunityIcons name={icon} size={26} color={ink} />
       </View>
-      <Text style={[t.small, { color: p.muted }]} numberOfLines={1}>
+      <Text style={[t.small, { color: p.text, fontWeight: '500' }]} numberOfLines={1}>
         {label}
       </Text>
     </Pressable>
@@ -187,6 +190,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   quick: { alignItems: 'center', gap: 7, flex: 1 },
-  quickDisc: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  quickDisc: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
   empty: { paddingVertical: space.md, textAlign: 'center' },
 });

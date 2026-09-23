@@ -1,74 +1,75 @@
 import { View } from 'react-native';
-import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
+import Svg, { Line, Rect } from 'react-native-svg';
 import type { CalendarDay } from '@tiny-budget/core';
 import type { Palette } from '../theme';
 
 /**
- * The shape of the month's money, drawn like a tide chart.
+ * One bar per day, measured from the zero line.
  *
- * A running balance is a curve, not a list, and the thing worth seeing is
- * where it bottoms out — so the low point is the only marked coordinate and
- * the zero line is drawn whether or not the curve reaches it. Every fintech
- * kit charts a portfolio going up and to the right; this one is honest about
- * dipping, because that dip is the reason to open the app.
+ * A running balance only moves on the days something happens, so a smoothed
+ * line would invent a gentle slope across flat stretches and imply amounts the
+ * balance never held. Bars say what is true: this is what you have at the end
+ * of each day. Days in the red hang below the line rather than changing
+ * colour alone, so the shortfall has a shape as well as a hue, and the day you
+ * are lowest is the one bar drawn at full strength.
  */
 export function BalanceCurve({
   days,
   palette,
   width,
-  height = 92,
+  height = 96,
   tone = 'good',
 }: {
   days: CalendarDay[];
   palette: Palette;
   width: number;
   height?: number;
-  /** Matches the headline figure, so the curve and the number never disagree. */
+  /** Matches the headline figure, so the chart and the number never disagree. */
   tone?: 'good' | 'warn' | 'bad';
 }) {
-  if (days.length < 2 || width <= 0) return <View style={{ height }} />;
+  if (days.length === 0 || width <= 0) return <View style={{ height }} />;
 
   const values = days.map((d) => d.balance);
   const min = Math.min(...values, 0);
   const max = Math.max(...values, 0);
   const span = max - min || 1;
 
-  const padY = 10;
+  const padY = 8;
   const usable = height - padY * 2;
-  const x = (i: number) => (i / (days.length - 1)) * width;
-  const y = (v: number) => padY + (1 - (v - min) / span) * usable;
+  const zeroY = padY + (max / span) * usable;
 
-  const line = values.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(2)},${y(v).toFixed(2)}`).join(' ');
-  const area = `${line} L${width.toFixed(2)},${y(min).toFixed(2)} L0,${y(min).toFixed(2)} Z`;
+  const slot = width / days.length;
+  // Proportional to the slot, not a fixed width: late in a month only a week
+  // remains, and fixed-width bars would leave the chart looking like a few
+  // stray marks rather than a series.
+  const barW = Math.max(Math.min(slot * 0.66, 22), 2);
+  const radius = Math.min(barW / 2, 4);
 
+  const accent = tone === 'bad' ? palette.rose : tone === 'warn' ? palette.peach : palette.mint;
   const lowIndex = values.indexOf(Math.min(...values));
-  const zeroY = y(0);
-  const dipsUnder = min < 0;
-  const stroke = tone === 'bad' ? palette.rose : tone === 'warn' ? palette.peach : palette.mint;
 
   return (
     <Svg width={width} height={height}>
-      {/* Water below the waterline, so "under" is a place on the chart
-          rather than a colour swapped in at the last moment. */}
-      {dipsUnder && (
-        <Rect
-          x={0}
-          y={zeroY}
-          width={width}
-          height={Math.max(height - zeroY, 0)}
-          fill={palette.rose}
-          opacity={0.10}
-        />
-      )}
-      <Path d={area} fill={stroke} opacity={0.12} />
-      <Path
-        d={line}
-        stroke={stroke}
-        strokeWidth={2}
-        fill="none"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
+      {values.map((v, i) => {
+        const h = Math.max((Math.abs(v) / span) * usable, 1.5);
+        const negative = v < 0;
+        const y = negative ? zeroY : zeroY - h;
+        const isLow = i === lowIndex;
+        return (
+          <Rect
+            key={days[i].key}
+            x={i * slot + (slot - barW) / 2}
+            y={y}
+            width={barW}
+            height={h}
+            rx={radius}
+            fill={negative ? palette.rose : accent}
+            // The low day is the point of the chart, so everything else steps
+            // back rather than the low day shouting.
+            opacity={isLow ? 1 : negative ? 0.55 : 0.4}
+          />
+        );
+      })}
       <Line
         x1={0}
         y1={zeroY}
@@ -77,15 +78,7 @@ export function BalanceCurve({
         stroke={palette.muted}
         strokeWidth={1}
         strokeDasharray="3 4"
-        opacity={0.35}
-      />
-      <Circle
-        cx={x(lowIndex)}
-        cy={y(values[lowIndex])}
-        r={4.5}
-        fill={stroke}
-        stroke={palette.surface}
-        strokeWidth={2.5}
+        opacity={0.45}
       />
     </Svg>
   );

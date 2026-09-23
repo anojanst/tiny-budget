@@ -205,10 +205,20 @@ export default function CalendarScreen() {
       </View>
 
       <View style={styles.quickRow}>
-        <QuickAction glyph="↓" label="Income" tint="mint" onPress={() => router.push('/money')} />
-        <QuickAction glyph="↑" label="Payment" tint="peach" onPress={() => router.push('/money')} />
-        <QuickAction glyph="+" label="One-off" tint="brand" onPress={() => router.push('/money')} />
-        <QuickAction glyph="≡" label="All money" tint="slate" onPress={() => router.push('/money')} />
+        <QuickAction icon="cash-plus" label="Income" tint="mint" onPress={() => router.push('/money')} />
+        <QuickAction icon="cash-minus" label="Payment" tint="peach" onPress={() => router.push('/money')} />
+        <QuickAction
+          icon="calendar-plus"
+          label="One-off"
+          tint="brand"
+          onPress={() => router.push('/money')}
+        />
+        <QuickAction
+          icon="format-list-bulleted"
+          label="All money"
+          tint="slate"
+          onPress={() => router.push('/money')}
+        />
       </View>
 
       {hasAnything && undated > 0 && (

@@ -61,9 +61,17 @@ Colour has one job each. Blue is the brand and every selected control; mint
 means money arriving; peach and rose mean the balance is thin or gone. A
 selected chip is never mint, because mint already means something else.
 
-The hero draws the month's balance as a curve, marking only the low point and
-the waterline. Fintech kits chart a portfolio going up and to the right; this
-one is honest about dipping, because the dip is the reason to open the app.
+The hero charts the month's balance as one bar per day, measured from a zero
+line. A smoothed line was tried first and rejected: a balance only moves on
+the days something happens, so a spline invents a gentle slope across flat
+stretches and implies amounts the balance never held. Bars say what is true —
+this is what you have at the end of each day — and days in the red hang below
+the line, so a shortfall has a shape and not only a hue. The day you are
+lowest is the single bar drawn at full strength; the rest step back.
+
+Bar width is a proportion of the slot rather than fixed, because late in a
+month only a week remains and fixed-width bars read as a few stray marks
+instead of a series.
 
 ## The one hazard worth knowing
 
