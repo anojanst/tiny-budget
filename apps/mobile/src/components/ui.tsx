@@ -55,7 +55,7 @@ export function Figure({
 }) {
   const p = usePalette();
   const color =
-    tone === 'bad' ? p.aground : tone === 'warn' ? p.shoal : tone === 'good' ? p.tide : p.text;
+    tone === 'bad' ? p.rose : tone === 'warn' ? p.peach : tone === 'good' ? p.mint : p.text;
   return (
     <Card style={StyleSheet.flatten([{ flex: 1, minWidth: 140, gap: 2 }, style])}>
       <Text style={[t.small, { color: p.muted }]}>{label}</Text>
@@ -79,16 +79,11 @@ export function Field({
   const p = usePalette();
   return (
     <View style={style}>
-      {label ? (
-        <Text style={[t.small, { color: p.muted, marginBottom: 5 }]}>{label}</Text>
-      ) : null}
+      {label ? <Text style={[t.small, { color: p.muted, marginBottom: 5 }]}>{label}</Text> : null}
       <TextInput
         placeholderTextColor={p.muted}
         {...props}
-        style={[
-          styles.input,
-          { color: p.text, backgroundColor: p.paper, borderColor: p.line },
-        ]}
+        style={[styles.input, { color: p.text, backgroundColor: p.page, borderColor: p.line }]}
       />
     </View>
   );
@@ -108,8 +103,8 @@ export function Button({
   style?: ViewStyle;
 }) {
   const p = usePalette();
-  const bg = variant === 'primary' ? p.tide : variant === 'danger' ? p.agroundWash : 'transparent';
-  const fg = variant === 'primary' ? '#FFFFFF' : variant === 'danger' ? p.aground : p.text;
+  const bg = variant === 'primary' ? p.brand : variant === 'danger' ? p.roseWash : 'transparent';
+  const fg = variant === 'primary' ? p.onBrand : variant === 'danger' ? p.rose : p.text;
   return (
     <Pressable
       accessibilityRole="button"
@@ -134,19 +129,25 @@ export function Button({
 }
 
 /**
- * The row of things you can add, carried over from the reference kit's
- * quick-action row — the one pattern in it that genuinely saves a tab switch.
+ * The quick-action row. Each disc gets its own pastel wash so the three are
+ * told apart by colour as well as glyph, which is how the row stays scannable
+ * at a glance rather than becoming three identical grey circles.
  */
 export function QuickAction({
   glyph,
   label,
+  tint,
   onPress,
 }: {
   glyph: string;
   label: string;
+  tint: 'brand' | 'mint' | 'peach' | 'slate';
   onPress: () => void;
 }) {
   const p = usePalette();
+  const wash =
+    tint === 'mint' ? p.mintWash : tint === 'peach' ? p.peachWash : tint === 'brand' ? p.brandWash : p.slateWash;
+  const ink = tint === 'mint' ? p.mint : tint === 'peach' ? p.peach : tint === 'brand' ? p.brand : p.muted;
   return (
     <Pressable
       accessibilityRole="button"
@@ -154,8 +155,8 @@ export function QuickAction({
       onPress={onPress}
       style={({ pressed }) => [styles.quick, { opacity: pressed ? 0.6 : 1 }]}
     >
-      <View style={[styles.quickDisc, { backgroundColor: p.tideWash, borderColor: p.line }]}>
-        <Text style={{ color: p.tide, fontSize: 18, fontWeight: '600' }}>{glyph}</Text>
+      <View style={[styles.quickDisc, { backgroundColor: wash }]}>
+        <Text style={{ color: ink, fontSize: 19, fontWeight: '600' }}>{glyph}</Text>
       </View>
       <Text style={[t.small, { color: p.muted }]} numberOfLines={1}>
         {label}
@@ -166,9 +167,7 @@ export function QuickAction({
 
 export function Empty({ children }: { children: ReactNode }) {
   const p = usePalette();
-  return (
-    <Text style={[t.body, styles.empty, { color: p.muted }]}>{children}</Text>
-  );
+  return <Text style={[t.body, styles.empty, { color: p.muted }]}>{children}</Text>;
 }
 
 const styles = StyleSheet.create({
@@ -187,14 +186,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quick: { alignItems: 'center', gap: 6, flex: 1 },
-  quickDisc: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-  },
+  quick: { alignItems: 'center', gap: 7, flex: 1 },
+  quickDisc: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   empty: { paddingVertical: space.md, textAlign: 'center' },
 });

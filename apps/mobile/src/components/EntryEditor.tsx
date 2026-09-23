@@ -44,10 +44,10 @@ export function FrequencyPicker({
             style={[
               styles.freqChip,
               { borderColor: p.line },
-              active && { backgroundColor: p.tide, borderColor: p.tide },
+              active && { backgroundColor: p.brand, borderColor: p.brand },
             ]}
           >
-            <Text style={{ color: active ? '#FFFFFF' : p.muted, fontSize: 12, fontWeight: '600' }}>
+            <Text style={{ color: active ? p.onBrand : p.muted, fontSize: 12, fontWeight: '600' }}>
               {f.short}
             </Text>
           </Pressable>
@@ -95,7 +95,7 @@ export function EntryRow({
           </Text>
         </View>
         <Text
-          style={[styles.rowAmount, { color: tone === 'in' ? p.tide : p.text }]}
+          style={[styles.rowAmount, { color: tone === 'in' ? p.mint : p.text }]}
         >
           {tone === 'in' ? '+' : '−'}
           {formatCurrency(weekly)}/wk

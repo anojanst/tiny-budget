@@ -39,29 +39,31 @@ is what people actually scan.
 
 ## Visual direction
 
-The palette is a depth gauge rather than decoration. Most budgeting apps are
-fintech blue — the colour of a bank rather than of your own money — and they
-keep red for a rare error state. This app's most important screen is often the
-one saying you run out on the 14th, so "running low" and "under" are
-first-class colours sharing one scale with "fine": deep water, shallows,
-aground.
+Light and soft by default. White cards on a pale blue ground, a brand band
+across the top, pastel washes behind icons, and generous radii — saturation is
+spent only where it carries meaning rather than spread across the screen.
 
-The hero answers the question the app exists for — how low does this month get,
-and when — and draws the curve that produces it, marking only the low point and
-the waterline. Reference fintech kits chart a portfolio going up and to the
-right; this one is honest about dipping, because the dip is the reason to open
-the app.
+The headline figure keeps three states on one scale, as tints rather than
+alarms. This app regularly tells people they run out of money on the 14th, so
+that state is common rather than exceptional and should read clearly without
+shouting:
 
-Three states, one scale:
-
-| Lowest point | Reads as | Wording |
+| Lowest point | Reads as | Says |
 | --- | --- | --- |
-| Comfortably clear | tide green | just the date |
-| Under a week of bills | shoal amber | "less than a week's bills left" |
-| Below zero | aground red | "you run out" |
+| Comfortably clear | mint | just the date |
+| Under a week of bills | peach | "Under a week's bills" |
+| Below zero | rose | "You run out" |
 
-The middle state is the one that earns its place: a binary red can only tell
-you after it is too late to move anything.
+The middle state is the one that earns its place: an all-or-nothing red can
+only speak once it is too late to move anything.
+
+Colour has one job each. Blue is the brand and every selected control; mint
+means money arriving; peach and rose mean the balance is thin or gone. A
+selected chip is never mint, because mint already means something else.
+
+The hero draws the month's balance as a curve, marking only the low point and
+the waterline. Fintech kits chart a portfolio going up and to the right; this
+one is honest about dipping, because the dip is the reason to open the app.
 
 ## The one hazard worth knowing
 

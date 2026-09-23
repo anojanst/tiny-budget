@@ -18,12 +18,12 @@ export default function RootLayout() {
         <StatusBar style="auto" />
         <Tabs
           screenOptions={{
-            headerStyle: { backgroundColor: p.paper },
+            headerStyle: { backgroundColor: p.page },
             headerTitleStyle: { color: p.text },
             headerShadowVisible: false,
-            sceneStyle: { backgroundColor: p.paper },
+            sceneStyle: { backgroundColor: p.page },
             tabBarStyle: { backgroundColor: p.surface, borderTopColor: p.line },
-            tabBarActiveTintColor: p.tide,
+            tabBarActiveTintColor: p.mint,
             tabBarInactiveTintColor: p.muted,
           }}
         >
@@ -31,6 +31,9 @@ export default function RootLayout() {
             name="index"
             options={{
               title: 'Calendar',
+              // The brand band carries the month and the navigation, so a
+              // second bar above it saying "Calendar" only steals height.
+              headerShown: false,
               tabBarIcon: ({ color }) => <TabIcon glyph="▦" color={color} />,
             }}
           />

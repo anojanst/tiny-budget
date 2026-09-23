@@ -44,7 +44,7 @@ export function BalanceCurve({
   const lowIndex = values.indexOf(Math.min(...values));
   const zeroY = y(0);
   const dipsUnder = min < 0;
-  const stroke = tone === 'bad' ? palette.aground : tone === 'warn' ? palette.shoal : palette.tide;
+  const stroke = tone === 'bad' ? palette.rose : tone === 'warn' ? palette.peach : palette.mint;
 
   return (
     <Svg width={width} height={height}>
@@ -56,11 +56,11 @@ export function BalanceCurve({
           y={zeroY}
           width={width}
           height={Math.max(height - zeroY, 0)}
-          fill={palette.aground}
-          opacity={0.14}
+          fill={palette.rose}
+          opacity={0.10}
         />
       )}
-      <Path d={area} fill={stroke} opacity={0.14} />
+      <Path d={area} fill={stroke} opacity={0.12} />
       <Path
         d={line}
         stroke={stroke}
@@ -74,17 +74,17 @@ export function BalanceCurve({
         y1={zeroY}
         x2={width}
         y2={zeroY}
-        stroke={palette.onDeepMuted}
+        stroke={palette.muted}
         strokeWidth={1}
         strokeDasharray="3 4"
-        opacity={0.6}
+        opacity={0.35}
       />
       <Circle
         cx={x(lowIndex)}
         cy={y(values[lowIndex])}
         r={4.5}
         fill={stroke}
-        stroke={palette.deep}
+        stroke={palette.surface}
         strokeWidth={2.5}
       />
     </Svg>

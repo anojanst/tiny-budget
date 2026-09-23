@@ -30,7 +30,7 @@ export default function MoneyScreen() {
 
   return (
     <ScrollView
-      style={{ backgroundColor: p.paper }}
+      style={{ backgroundColor: p.page }}
       contentContainerStyle={styles.screen}
       keyboardShouldPersistTaps="handled"
     >
@@ -134,7 +134,7 @@ export default function MoneyScreen() {
                   </View>
                   <Text
                     style={{
-                      color: item.direction === 'in' ? p.tide : p.text,
+                      color: item.direction === 'in' ? p.mint : p.text,
                       fontWeight: '700',
                       fontVariant: ['tabular-nums'],
                     }}
@@ -166,10 +166,10 @@ export default function MoneyScreen() {
                   style={[
                     styles.dirChip,
                     { borderColor: p.line },
-                    active && { backgroundColor: p.tide, borderColor: p.tide },
+                    active && { backgroundColor: p.brand, borderColor: p.brand },
                   ]}
                 >
-                  <Text style={{ color: active ? '#FFFFFF' : p.muted, fontWeight: '600' }}>
+                  <Text style={{ color: active ? p.onBrand : p.muted, fontWeight: '600' }}>
                     {d === 'out' ? 'Out' : 'In'}
                   </Text>
                 </Pressable>

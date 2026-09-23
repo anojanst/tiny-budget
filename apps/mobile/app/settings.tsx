@@ -30,7 +30,7 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView
-      style={{ backgroundColor: p.paper }}
+      style={{ backgroundColor: p.page }}
       contentContainerStyle={styles.screen}
       keyboardShouldPersistTaps="handled"
     >
@@ -60,8 +60,8 @@ export default function SettingsScreen() {
                   <View
                     style={[
                       styles.radio,
-                      { borderColor: active ? p.tide : p.line },
-                      active && { backgroundColor: p.tide },
+                      { borderColor: active ? p.brand : p.line },
+                      active && { backgroundColor: p.brand },
                     ]}
                   />
                   <Text style={{ color: p.text, fontWeight: active ? '700' : '500' }}>

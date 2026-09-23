@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import {
   addMonths,
@@ -14,6 +15,7 @@ import {
   weeksBetween,
   type CalendarDay,
 } from '@tiny-budget/core';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBudgetContext } from '../src/budgetContext';
 import { BalanceCurve } from '../src/components/BalanceCurve';
 import { Card, Empty, QuickAction, SectionTitle } from '../src/components/ui';
@@ -29,6 +31,7 @@ export default function CalendarScreen() {
   const p = usePalette();
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const visibleMonth = useMemo(
     () => addMonths(startOfMonth(today), monthOffset),
@@ -95,14 +98,14 @@ export default function CalendarScreen() {
   );
   const tone: 'bad' | 'warn' | 'good' =
     !low || !hasAnything ? 'good' : low.balance < 0 ? 'bad' : low.balance < weeklyOut ? 'warn' : 'good';
-  const toneColor = tone === 'bad' ? p.aground : tone === 'warn' ? p.shoal : p.tide;
+  const toneColor = tone === 'bad' ? p.rose : tone === 'warn' ? p.peach : p.mint;
 
   const daysAway = low ? Math.max(Math.round(weeksBetween(today, low.date) * 7), 0) : 0;
   const heroWidth = Math.max(width - space.lg * 2 - space.lg * 2, 120);
 
   if (!loaded) {
     return (
-      <View style={[styles.screen, { backgroundColor: p.paper, justifyContent: 'center', flex: 1 }]}>
+      <View style={[styles.screen, { backgroundColor: p.page, justifyContent: 'center', flex: 1 }]}>
         <Empty>Loading your budget…</Empty>
       </View>
     );
@@ -110,86 +113,107 @@ export default function CalendarScreen() {
 
   return (
     <ScrollView
-      style={{ backgroundColor: p.paper }}
+      style={{ backgroundColor: p.page }}
       contentContainerStyle={styles.screen}
       keyboardShouldPersistTaps="handled"
     >
-      {/* The hero answers the one question the app exists for — how low does
-          this month get, and when — and shows the shape that produces it. */}
-      <View style={[styles.hero, { backgroundColor: p.deep }]}>
-        <View style={styles.heroTop}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Previous month"
-            disabled={monthOffset === 0}
-            onPress={() => setMonthOffset((m) => Math.max(m - 1, 0))}
-            style={styles.arrow}
-          >
-            <Text style={{ color: monthOffset === 0 ? p.onDeepMuted : p.onDeep, fontSize: 20 }}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => setMonthOffset(0)}>
-            <Text style={[t.label, { color: p.onDeep }]}>{formatMonthYear(visibleMonth)}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Next month"
-            disabled={monthOffset === MAX_MONTHS}
-            onPress={() => setMonthOffset((m) => Math.min(m + 1, MAX_MONTHS))}
-            style={styles.arrow}
-          >
-            <Text style={{ color: p.onDeep, fontSize: 20 }}>›</Text>
-          </Pressable>
-        </View>
-
-        <Text style={[t.small, { color: p.onDeepMuted }]}>
-          {hasAnything ? 'Lowest this month' : 'Nothing projected yet'}
-        </Text>
-        <Text
-          style={[t.hero, { color: hasAnything ? toneColor : p.onDeepMuted, fontVariant: ['tabular-nums'] }]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
+      {/* A brand band with the figure card lifted onto it: colour at the top
+          of the screen for warmth, and the number itself on white where it
+          stays legible in all three states. */}
+      <View style={styles.heroWrap}>
+        <LinearGradient
+          colors={[p.brand, p.brandDeep]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.band, { paddingTop: insets.top + space.md }]}
         >
-          {low && hasAnything ? formatCurrency(low.balance) : '—'}
-        </Text>
-        {low && hasAnything ? (
-          <Text style={[t.small, { color: p.onDeepMuted }]}>
-            {formatShortDate(low.date)}
-            {daysAway === 0 ? ' · today' : daysAway === 1 ? ' · tomorrow' : ` · in ${daysAway} days`}
-            {tone === 'bad'
-              ? ' · you run out'
-              : tone === 'warn'
-                ? " · less than a week's bills left"
-                : ''}
-          </Text>
-        ) : (
-          <Text style={[t.small, { color: p.onDeepMuted }]}>
-            Add what comes in and goes out, and this fills in.
-          </Text>
-        )}
+          <View style={styles.bandRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Previous month"
+              disabled={monthOffset === 0}
+              onPress={() => setMonthOffset((m) => Math.max(m - 1, 0))}
+              style={styles.arrow}
+            >
+              <Text style={{ color: monthOffset === 0 ? p.onBrandMuted : p.onBrand, fontSize: 22 }}>
+                ‹
+              </Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => setMonthOffset(0)}>
+              <Text style={[t.title, { color: p.onBrand }]}>{formatMonthYear(visibleMonth)}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Next month"
+              disabled={monthOffset === MAX_MONTHS}
+              onPress={() => setMonthOffset((m) => Math.min(m + 1, MAX_MONTHS))}
+              style={styles.arrow}
+            >
+              <Text style={{ color: p.onBrand, fontSize: 22 }}>›</Text>
+            </Pressable>
+          </View>
+        </LinearGradient>
 
-        <View style={{ marginTop: space.md }}>
-          <BalanceCurve days={days} palette={p} width={heroWidth} tone={tone} />
-        </View>
-        <View style={styles.heroFoot}>
-          <Text style={[t.small, { color: p.onDeepMuted }]}>
-            {formatCurrency(budget.currentBalance)} today
+        <View style={[styles.heroCard, { backgroundColor: p.surface, borderColor: p.line }]}>
+          <Text style={[t.small, { color: p.muted }]}>
+            {hasAnything ? 'Lowest this month' : 'Nothing projected yet'}
           </Text>
-          <Text style={[t.small, { color: p.onDeepMuted }]}>
-            {formatCurrency(days[days.length - 1]?.balance ?? 0)} by month end
+          <Text
+            style={[t.hero, { color: hasAnything ? toneColor : p.muted, fontVariant: ['tabular-nums'] }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            {low && hasAnything ? formatCurrency(low.balance) : '—'}
           </Text>
+          {low && hasAnything ? (
+            <View style={styles.heroNote}>
+              <Text style={[t.small, { color: p.muted }]}>
+                {formatShortDate(low.date)}
+                {daysAway === 0 ? ' · today' : daysAway === 1 ? ' · tomorrow' : ` · in ${daysAway} days`}
+              </Text>
+              {tone !== 'good' && (
+                <View
+                  style={[
+                    styles.pill,
+                    { backgroundColor: tone === 'bad' ? p.roseWash : p.peachWash },
+                  ]}
+                >
+                  <Text style={[t.small, { color: toneColor, fontWeight: '600' }]}>
+                    {tone === 'bad' ? 'You run out' : "Under a week's bills"}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <Text style={[t.small, { color: p.muted }]}>
+              Add what comes in and goes out, and this fills in.
+            </Text>
+          )}
+
+          <View style={{ marginTop: space.md }}>
+            <BalanceCurve days={days} palette={p} width={heroWidth} tone={tone} />
+          </View>
+          <View style={styles.heroFoot}>
+            <Text style={[t.small, { color: p.muted }]}>
+              {formatCurrency(budget.currentBalance)} today
+            </Text>
+            <Text style={[t.small, { color: p.muted }]}>
+              {formatCurrency(days[days.length - 1]?.balance ?? 0)} by month end
+            </Text>
+          </View>
         </View>
       </View>
 
       <View style={styles.quickRow}>
-        <QuickAction glyph="↓" label="Income" onPress={() => router.push('/money')} />
-        <QuickAction glyph="↑" label="Payment" onPress={() => router.push('/money')} />
-        <QuickAction glyph="•" label="One-off" onPress={() => router.push('/money')} />
-        <QuickAction glyph="≡" label="All money" onPress={() => router.push('/money')} />
+        <QuickAction glyph="↓" label="Income" tint="mint" onPress={() => router.push('/money')} />
+        <QuickAction glyph="↑" label="Payment" tint="peach" onPress={() => router.push('/money')} />
+        <QuickAction glyph="+" label="One-off" tint="brand" onPress={() => router.push('/money')} />
+        <QuickAction glyph="≡" label="All money" tint="slate" onPress={() => router.push('/money')} />
       </View>
 
       {hasAnything && undated > 0 && (
-        <Card style={{ backgroundColor: p.shoalWash, borderColor: p.shoal }}>
-          <Text style={[t.small, { color: p.shoal, lineHeight: 18 }]}>
+        <Card style={{ backgroundColor: p.peachWash, borderColor: p.peach }}>
+          <Text style={[t.small, { color: p.peach, lineHeight: 18 }]}>
             {undated} {undated === 1 ? 'entry has' : 'entries have'} no date, so{' '}
             {undated === 1 ? 'it is' : 'they are'} spread evenly instead of landing on a day. Dating{' '}
             {undated === 1 ? 'it' : 'them'} turns this into an actual schedule.
@@ -225,8 +249,8 @@ export default function CalendarScreen() {
                 onPress={() => setSelected(isSelected ? null : key)}
                 style={[
                   styles.cell,
-                  entry?.short && { backgroundColor: p.agroundWash },
-                  isSelected && { backgroundColor: p.tideWash, borderColor: p.tide },
+                  entry?.short && { backgroundColor: p.roseWash },
+                  isSelected && { backgroundColor: p.brandWash, borderColor: p.mint },
                   isToday && { borderColor: p.text },
                 ]}
               >
@@ -241,7 +265,7 @@ export default function CalendarScreen() {
                   {date.getDate()}
                 </Text>
                 <View style={styles.dots}>
-                  {moneyIn && !isPast && <View style={[styles.dot, { backgroundColor: p.tide }]} />}
+                  {moneyIn && !isPast && <View style={[styles.dot, { backgroundColor: p.mint }]} />}
                   {moneyOut && !isPast && <View style={[styles.dot, { backgroundColor: p.muted }]} />}
                 </View>
               </Pressable>
@@ -279,7 +303,7 @@ export default function CalendarScreen() {
                 </View>
                 <View style={{ flex: 1, gap: 3 }}>
                   {[...entry.paydays, ...entry.credits].map((item) => (
-                    <Text key={item.id} style={[t.body, { color: p.tide, fontWeight: '600' }]}>
+                    <Text key={item.id} style={[t.body, { color: p.mint, fontWeight: '600' }]}>
                       {item.name} +{formatCurrency(item.amount)}
                     </Text>
                   ))}
@@ -293,7 +317,7 @@ export default function CalendarScreen() {
                   style={[
                     t.label,
                     {
-                      color: entry.short ? p.aground : p.text,
+                      color: entry.short ? p.rose : p.text,
                       fontWeight: '700',
                       fontVariant: ['tabular-nums'],
                     },
@@ -312,14 +336,20 @@ export default function CalendarScreen() {
 
 const styles = StyleSheet.create({
   screen: { padding: space.lg, gap: space.lg, paddingBottom: space.xl * 2 },
-  hero: { borderRadius: radius.hero, padding: space.lg, gap: 2 },
-  heroTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: space.sm,
-  },
+  heroWrap: { marginTop: -space.lg, marginHorizontal: -space.lg },
+  band: { paddingTop: space.md, paddingBottom: space.xl + space.lg, paddingHorizontal: space.lg },
+  bandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   arrow: { paddingHorizontal: space.sm, paddingVertical: 2 },
+  heroCard: {
+    marginTop: -(space.xl + space.sm),
+    marginHorizontal: space.lg,
+    borderRadius: radius.hero,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: space.lg,
+    gap: 2,
+  },
+  heroNote: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.sm },
+  pill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
   heroFoot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: space.xs },
   quickRow: { flexDirection: 'row', gap: space.sm },
   weekRow: { flexDirection: 'row' },
