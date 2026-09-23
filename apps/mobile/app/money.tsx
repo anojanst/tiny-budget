@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { formatCurrency, type OneOffDirection } from '@tiny-budget/core';
+import {
+  formatCurrency,
+  formatShortDate,
+  parseLocalDate,
+  toDateInputValue,
+  type OneOffDirection,
+} from '@tiny-budget/core';
 import { useBudgetContext } from '../src/budgetContext';
+import { DateField } from '../src/components/DateField';
 import { AddEntry, EntryRow } from '../src/components/EntryEditor';
 import { Button, Card, Empty, Field, Figure, SectionTitle } from '../src/components/ui';
 import { radius, space, usePalette } from '../src/theme';
@@ -130,7 +137,7 @@ export default function MoneyScreen() {
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: p.text, fontWeight: '600' }}>{item.name}</Text>
-                    <Text style={{ color: p.muted, fontSize: 12 }}>{item.date}</Text>
+                    <Text style={{ color: p.muted, fontSize: 12 }}>{readableDate(item.date)}</Text>
                   </View>
                   <Text
                     style={{
@@ -182,24 +189,23 @@ export default function MoneyScreen() {
             onChangeText={setOneOffName}
             accessibilityLabel="New one-off name"
           />
-          <View style={{ flexDirection: 'row', gap: space.sm }}>
-            <Field
-              style={{ flex: 1 }}
-              placeholder="Amount"
-              value={oneOffAmount}
-              keyboardType="decimal-pad"
-              onChangeText={setOneOffAmount}
-              accessibilityLabel="New one-off amount"
-            />
-            <Field
-              style={{ flex: 1 }}
-              placeholder="2026-10-31"
-              value={oneOffDate}
-              autoCapitalize="none"
-              onChangeText={setOneOffDate}
-              accessibilityLabel="New one-off date"
-            />
-          </View>
+          <Field
+            placeholder="Amount"
+            value={oneOffAmount}
+            keyboardType="decimal-pad"
+            onChangeText={setOneOffAmount}
+            accessibilityLabel="New one-off amount"
+          />
+          {/* Required, unlike a recurring entry's date: a one-off *is* its
+              date. Without one there is nothing to spread and nothing to
+              land, so there would be no way to show it at all. */}
+          <DateField
+            value={oneOffDate}
+            onChange={setOneOffDate}
+            placeholder="When does it happen?"
+            minimumDate={b.today}
+            accessibilityLabel="New one-off date"
+          />
           <Button
             label="Add one-off"
             onPress={addOneOff}
@@ -211,10 +217,12 @@ export default function MoneyScreen() {
   );
 }
 
-function toKey(date: Date): string {
-  const m = `${date.getMonth() + 1}`.padStart(2, '0');
-  const d = `${date.getDate()}`.padStart(2, '0');
-  return `${date.getFullYear()}-${m}-${d}`;
+const toKey = toDateInputValue;
+
+/** Falls back to the raw string rather than hiding a date it can't parse. */
+function readableDate(value: string): string {
+  const parsed = parseLocalDate(value);
+  return parsed ? formatShortDate(parsed) : value;
 }
 
 const styles = StyleSheet.create({

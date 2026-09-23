@@ -345,9 +345,13 @@ describe('buildCashflowDays — one-off money in', () => {
     ]);
     expect(days[14].balance).toBe(1300);
     // A single windfall is not a recurring pay, and must never be counted as
-    // one — otherwise the "paydays this month" figure quietly inflates.
+    // one — otherwise the "paydays this month" figure quietly inflates. That
+    // distinction lives in `isPayday`; `incoming` is the day's whole inflow,
+    // so the windfall does belong in it.
     expect(days[14].isPayday).toBe(false);
-    expect(days[14].incoming).toBe(0);
+    expect(days[14].paydays).toEqual([]);
+    expect(days[14].incoming).toBe(1200);
+    expect(days[14].outgoing).toBe(0);
     // And it happens once.
     expect(days[40].balance).toBe(1300);
   });
@@ -390,5 +394,74 @@ describe('buildCashflowDays — one-off money in', () => {
     const bill: OneOff = { id: 'o1', name: 'Headphones', amount: 300, date: '2026-01-15', direction: 'out' };
     expect(buildCashflowDays({ ...base, oneOffs: [bill] })[14].short).toBe(true);
     expect(buildCashflowDays({ ...base, oneOffs: [bill, refund()] })[14].short).toBe(false);
+  });
+});
+
+/**
+ * `incoming` and `outgoing` are what a client renders as a day's, or a
+ * month's, flow. If either drifts from the balance the projection actually
+ * walks, a summary can disagree with the calendar sitting right below it —
+ * so the identity is pinned rather than assumed.
+ */
+describe('buildCashflowDays — flow reconciles with the balance', () => {
+  const cases: [string, Parameters<typeof buildCashflowDays>[0]][] = [
+    [
+      'dated pay and dated bills',
+      {
+        from,
+        through: day(60),
+        startingBalance: 500,
+        incomes: [income({ amount: 1400, frequency: 'fortnightly', nextDue: toDateInputValue(day(3)) })],
+        expenses: [
+          { id: 'e1', name: 'Rent', amount: 900, frequency: 'monthly', nextDue: toDateInputValue(day(5)) },
+        ],
+        oneOffs: [],
+      },
+    ],
+    [
+      'undated entries, which drip rather than land',
+      {
+        from,
+        through: day(60),
+        startingBalance: 500,
+        incomes: [income({ amount: 700, frequency: 'weekly' })],
+        expenses: [{ id: 'e1', name: 'Groceries', amount: 200, frequency: 'weekly' }],
+        oneOffs: [],
+      },
+    ],
+    [
+      'one-offs in both directions',
+      {
+        from,
+        through: day(60),
+        startingBalance: 500,
+        incomes: [income()],
+        expenses: [{ id: 'e1', name: 'Rent', amount: 900, frequency: 'monthly', nextDue: toDateInputValue(day(5)) }],
+        oneOffs: [
+          { id: 'o1', name: 'Headphones', amount: 300, date: toDateInputValue(day(20)), direction: 'out' },
+          { id: 'i1', name: 'Tax refund', amount: 1200, date: toDateInputValue(day(25)), direction: 'in' },
+        ],
+      },
+    ],
+  ];
+
+  it.each(cases)('every day nets to its balance delta with %s', (_label, input) => {
+    const days = buildCashflowDays(input);
+    let previous = input.startingBalance;
+    for (const d of days) {
+      expect(d.incoming - d.outgoing).toBeCloseTo(d.balance - previous, 6);
+      expect(d.incoming).toBeGreaterThanOrEqual(0);
+      expect(d.outgoing).toBeGreaterThanOrEqual(0);
+      previous = d.balance;
+    }
+  });
+
+  it.each(cases)('a month total nets to the month-end balance with %s', (_label, input) => {
+    const days = buildCashflowDays(input);
+    const month = days.filter((d) => d.date.getMonth() === 1); // February
+    const before = days[days.indexOf(month[0]) - 1].balance;
+    const totalIn = month.reduce((s, d) => s + d.incoming, 0);
+    const totalOut = month.reduce((s, d) => s + d.outgoing, 0);
+    expect(before + totalIn - totalOut).toBeCloseTo(month[month.length - 1].balance, 6);
   });
 });

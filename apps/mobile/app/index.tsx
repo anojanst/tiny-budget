@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import {
@@ -17,7 +17,7 @@ import {
 } from '@tiny-budget/core';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBudgetContext } from '../src/budgetContext';
-import { BalanceCurve } from '../src/components/BalanceCurve';
+import { MonthFlow } from '../src/components/MonthFlow';
 import { Card, Empty, MovementRow, QuickAction, SectionTitle } from '../src/components/ui';
 import { movementIcon } from '../src/components/movementIcon';
 import { radius, shadow, space, type as t, usePalette } from '../src/theme';
@@ -31,7 +31,6 @@ export default function CalendarScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const p = usePalette();
   const router = useRouter();
-  const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const budgetName =
     budgets.find((entry) => entry.id === activeBudgetId)?.name ?? 'Budget';
@@ -132,7 +131,6 @@ export default function CalendarScreen() {
   const toneColor = tone === 'bad' ? p.rose : tone === 'warn' ? p.peach : p.mint;
 
   const daysAway = low ? Math.max(Math.round(weeksBetween(today, low.date) * 7), 0) : 0;
-  const heroWidth = Math.max(width - space.lg * 2 - space.lg * 2, 120);
 
   if (!loaded) {
     return (
@@ -230,20 +228,20 @@ export default function CalendarScreen() {
             </Text>
           )}
 
-          <View style={{ marginTop: space.md }}>
-            {/* The projection has to run from today, because a balance is
-                only meaningful as the running total of everything before it —
-                but the chart shows the month you are looking at. Handing it
-                the whole projection made December draw a hundred bars, most
-                of them from months already scrolled past. */}
-            <BalanceCurve days={monthDays} palette={p} width={heroWidth} tone={tone} />
+          <View style={[styles.heroSplit, { borderTopColor: p.line }]}>
+            {/* The projection has to run from today, because a balance is only
+                meaningful as the running total of everything before it — but
+                the summary covers the month you are looking at, not the whole
+                run up to it. */}
+            <MonthFlow days={monthDays} />
           </View>
-          <View style={styles.heroFoot}>
+          <View style={[styles.heroFoot, { borderTopColor: p.line }]}>
             <Text style={[t.small, { color: p.muted }]}>
               {formatCurrency(budget.currentBalance)} today
             </Text>
             <Text style={[t.small, { color: p.muted }]}>
-              {formatCurrency(days[days.length - 1]?.balance ?? 0)} by month end
+              {formatCurrency(monthDays[monthDays.length - 1]?.balance ?? budget.currentBalance)} by
+              month end
             </Text>
           </View>
         </View>
@@ -383,7 +381,18 @@ const styles = StyleSheet.create({
   },
   heroNote: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.sm },
   pill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
-  heroFoot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: space.xs },
+  heroSplit: {
+    marginTop: space.md,
+    paddingTop: space.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  heroFoot: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: space.md,
+    paddingTop: space.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
   quickCard: { flexDirection: 'row', gap: space.sm, paddingVertical: space.lg },
   weekRow: { flexDirection: 'row' },
   weekday: { flex: 1, textAlign: 'center', fontWeight: '600' },

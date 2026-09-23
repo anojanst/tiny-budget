@@ -1,19 +1,96 @@
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useBudgetContext } from '../src/budgetContext';
 import { Button, Card, Field, SectionTitle } from '../src/components/ui';
 import { space, usePalette } from '../src/theme';
+
+/** Keeps a budget name usable as a filename without renaming it beyond recognition. */
+function fileNameFor(name: string): string {
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return `tiny-budget-${slug || 'budget'}.json`;
+}
 
 export default function SettingsScreen() {
   const b = useBudgetContext();
   const p = usePalette();
   const [newName, setNewName] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const share = async () => {
+  /**
+   * Writes a real `.json` file and shares that, rather than sharing the JSON
+   * as a message. A message can only be pasted back; a file can be picked
+   * back up by Import below, or opened by the web app — which is the whole
+   * point of a backup. Falls back to sharing the text where no app on the
+   * phone can receive a file.
+   */
+  const exportBudget = async () => {
+    const json = b.exportJson();
     try {
-      await Share.share({ message: b.exportJson() });
+      const file = new FileSystem.File(FileSystem.Paths.cache, fileNameFor(b.activeBudgetName));
+      file.create({ overwrite: true });
+      file.write(json);
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(file.uri, {
+          mimeType: 'application/json',
+          dialogTitle: 'Save your budget',
+          UTI: 'public.json',
+        });
+        return;
+      }
+    } catch {
+      // Fall through to the text share rather than leaving the button dead.
+    }
+    try {
+      await Share.share({ message: json });
     } catch {
       // The user dismissing the sheet is not an error worth reporting.
+    }
+  };
+
+  /**
+   * Import asks before it acts, because the file was picked from a list of
+   * downloads and the name on it may mean nothing. Nothing is replaced either
+   * way — the file arrives as an additional budget.
+   */
+  const importBudget = async () => {
+    setBusy(true);
+    try {
+      const picked = await DocumentPicker.getDocumentAsync({
+        // Some file providers hand JSON back as plain text or as a generic
+        // stream, so anything is accepted here and parseImport does the
+        // judging — a picker that refuses the user's actual backup is worse
+        // than one that lets them choose the wrong file.
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
+      if (picked.canceled || !picked.assets?.[0]) return;
+      const asset = picked.assets[0];
+      const text = await new FileSystem.File(asset.uri).text();
+      Alert.alert(
+        'Import this backup?',
+        `${asset.name ?? 'That file'} opens as an extra budget. Nothing you already have is touched.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Import it',
+            onPress: () => {
+              const error = b.importJson(text);
+              if (error) {
+                Alert.alert("That didn't import", error);
+                return;
+              }
+              Alert.alert('Imported', 'It is open now. Your other budgets are unchanged.');
+            },
+          },
+        ],
+      );
+    } catch {
+      Alert.alert("That file couldn't be opened", 'Try exporting a fresh copy and picking that.');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -103,7 +180,17 @@ export default function SettingsScreen() {
           hint="Everything lives on this phone only. An export is the only copy that survives losing it."
         />
         <Card style={{ gap: space.md }}>
-          <Button label="Export this budget" variant="ghost" onPress={share} />
+          <Button label="Export this budget" variant="ghost" onPress={() => void exportBudget()} />
+          <Button
+            label="Import a backup"
+            variant="ghost"
+            disabled={busy}
+            onPress={() => void importBudget()}
+          />
+          <Text style={[styles.body, { color: p.muted }]}>
+            Exports open on the web app too, and web exports open here. An import arrives as an
+            extra budget, so nothing on this phone is replaced.
+          </Text>
         </Card>
       </View>
 

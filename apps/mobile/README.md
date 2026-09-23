@@ -81,17 +81,43 @@ Colour has one job each. Blue is the brand and every selected control; mint
 means money arriving; peach and rose mean the balance is thin or gone. A
 selected chip is never mint, because mint already means something else.
 
-The hero charts the month's balance as one bar per day, measured from a zero
-line. A smoothed line was tried first and rejected: a balance only moves on
-the days something happens, so a spline invents a gentle slope across flat
-stretches and implies amounts the balance never held. Bars say what is true —
-this is what you have at the end of each day — and days in the red hang below
-the line, so a shortfall has a shape and not only a hue. The day you are
-lowest is the single bar drawn at full strength; the rest step back.
+Under the headline the hero carries one bar: the month's outgoings measured
+against the month's income, with the margin named underneath. A per-day
+balance chart sat here first and was removed — the calendar grid directly
+below already says what the balance does day by day, and says it better,
+because there a shortfall has a date you can point at. The question the grid
+*cannot* answer is whether the month covers itself at all, so that is the one
+this answers. One fact, one shape.
 
-Bar width is a proportion of the slot rather than fixed, because late in a
-month only a week remains and fixed-width bars read as a few stray marks
-instead of a series.
+The track fills against income, or against outgoings in a month with no pay,
+so a month of bills and no wages reads as completely full rather than empty.
+
+## Dates are picked, never typed
+
+Every date is stored as `yyyy-mm-dd`, which is the right thing to store and
+the wrong thing to ask someone to type on a phone. A mistyped date does not
+error — it silently moves a bill, and the projection quietly becomes wrong.
+`DateField` shows the date the way people read one and hands back the format
+the store wants, so the two never have to agree in a user's head.
+
+Recurring entries ask for the date **in the add form**, not only in the row
+that appears afterwards. It stays optional, because undated is a real state
+here and not an empty field waiting to be filled — but asking later meant
+most entries never got one, and the calendar stayed a drip instead of a
+schedule. One-off dates are required: a one-off *is* its date.
+
+## Backup runs both ways
+
+Export writes a real `.json` file and shares that, rather than sharing the
+JSON as a message — a message can only be pasted back, while a file can be
+picked up again by Import, or opened by the web app. Import takes any file
+and lets `parseImport` judge it, because a picker that refuses the user's
+actual backup is worse than one that lets them pick the wrong file.
+
+Both sides live in `@tiny-budget/core` (`buildExport` / `parseImport`), so a
+phone export opens on the web and a web export opens on the phone by
+construction rather than by agreement. An import always arrives as an
+*additional* budget; nothing already on the phone is replaced.
 
 ## The one hazard worth knowing
 

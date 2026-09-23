@@ -1,12 +1,14 @@
 import { useCallback, useMemo } from 'react';
 import { usePersistentState } from './usePersistentState';
 import {
+  buildExport,
   createEmptyBudget,
   DEFAULT_BUDGET_NAME,
   generateId,
   initialStoredState,
   isEntryActive,
   makeEntry,
+  parseImport,
   readStore,
   startOfToday,
   STORAGE_KEY,
@@ -68,10 +70,10 @@ export function useBudget() {
   const weeklyLeftover = weeklyIncome - weeklyExpenses;
 
   const addIncome = useCallback(
-    (name: string, amount: number, frequency: Frequency) =>
+    (name: string, amount: number, frequency: Frequency, nextDue?: string) =>
       setBudget((prev) => ({
         ...prev,
-        incomes: [...prev.incomes, { id: generateId(), name, amount, frequency }],
+        incomes: [...prev.incomes, { id: generateId(), name, amount, frequency, nextDue }],
       })),
     [setBudget],
   );
@@ -90,10 +92,10 @@ export function useBudget() {
   );
 
   const addExpense = useCallback(
-    (name: string, amount: number, frequency: Frequency) =>
+    (name: string, amount: number, frequency: Frequency, nextDue?: string) =>
       setBudget((prev) => ({
         ...prev,
-        expenses: [...prev.expenses, { id: generateId(), name, amount, frequency }],
+        expenses: [...prev.expenses, { id: generateId(), name, amount, frequency, nextDue }],
       })),
     [setBudget],
   );
@@ -177,18 +179,35 @@ export function useBudget() {
 
   const exportJson = useCallback(() => {
     const active = store.budgets.find((entry) => entry.id === store.activeId);
-    return JSON.stringify(
-      {
-        app: 'tiny-budget',
-        version: store.version,
-        exportedAt: new Date().toISOString(),
-        name: active?.name ?? DEFAULT_BUDGET_NAME,
-        budget,
-      },
-      null,
-      2,
-    );
+    return buildExport(active?.name ?? DEFAULT_BUDGET_NAME, budget);
   }, [budget, store]);
+
+  /** The name of the budget an export is of, for naming the file. */
+  const activeBudgetName =
+    store.budgets.find((entry) => entry.id === store.activeId)?.name ?? DEFAULT_BUDGET_NAME;
+
+  /**
+   * Opens a backup as a *new* budget rather than replacing the one on screen.
+   * Several budgets can coexist, so importing costs nothing and destroys
+   * nothing — which matters more on a phone, where the file was probably
+   * picked from a list of vaguely-named downloads.
+   *
+   * Returns an error string rather than throwing: choosing the wrong file is
+   * a normal thing to do, not an exception.
+   */
+  const importJson = useCallback(
+    (text: string): string | null => {
+      const result = parseImport(text);
+      if (!result.ok) return result.error;
+      setStored((prev) => {
+        const current = readStore(prev);
+        const entry = makeEntry(result.name, result.budget);
+        return { ...current, activeId: entry.id, budgets: [...current.budgets, entry] };
+      });
+      return null;
+    },
+    [setStored],
+  );
 
   return {
     loaded,
@@ -215,5 +234,7 @@ export function useBudget() {
     createBudget,
     deleteBudget,
     exportJson,
+    importJson,
+    activeBudgetName,
   };
 }

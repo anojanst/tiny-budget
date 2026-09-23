@@ -23,10 +23,18 @@ export interface CalendarDay {
   /** `yyyy-mm-dd`, for keying and lookups. */
   key: string;
   /**
-   * Everything arriving that day from regular pay — dated lumps plus the
-   * spread rate standing in for any stream with no payday set.
+   * Everything arriving that day: dated pay, one-off money in, and the spread
+   * rate standing in for any stream with no payday set.
    */
   incoming: number;
+  /**
+   * Everything leaving that day, on the same terms as `incoming`: dated bills
+   * and one-off payments, plus the spread rate standing in for any undated
+   * commitment. The pair is what makes a day's flow readable on its own —
+   * without it a client has to reverse it out of the balance delta, which
+   * silently breaks the moment anything else moves the balance.
+   */
+  outgoing: number;
   /** The dated pay streams landing that day, named. */
   paydays: CalendarItem[];
   /** True when real dated pay lands, rather than only a spread rate. */
@@ -163,13 +171,15 @@ export function buildCashflowDays({
     const paydays = pay.byDay.get(key) ?? [];
     const credits = creditsByDay.get(key) ?? [];
     const bills = out.byDay.get(key) ?? [];
-    const incoming = sum(paydays) + pay.dailyDrip;
+    const incoming = sum(paydays) + sum(credits) + pay.dailyDrip;
+    const outgoing = sum(bills) + out.dailyDrip;
 
-    balance += incoming + sum(credits) - out.dailyDrip - sum(bills);
+    balance += incoming - outgoing;
     days.push({
       date,
       key,
       incoming,
+      outgoing,
       paydays,
       isPayday: paydays.length > 0,
       credits,

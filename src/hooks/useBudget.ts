@@ -3,12 +3,13 @@ import { useLocalStorage } from './useLocalStorage';
 import {
   CURRENT_VERSION,
   DEFAULT_BUDGET_NAME,
+  buildExport,
   createEmptyBudget,
   generateId,
   initialStoredState,
   isEntryActive,
   makeEntry,
-  readBudget,
+  parseImport,
   readStore,
   STORAGE_KEY,
   sumWeekly,
@@ -203,17 +204,7 @@ export function useBudget() {
    */
   const exportJson = useCallback(() => {
     const active = store.budgets.find((entry) => entry.id === store.activeId);
-    return JSON.stringify(
-      {
-        app: 'tiny-budget',
-        version: CURRENT_VERSION,
-        exportedAt: new Date().toISOString(),
-        name: active?.name ?? DEFAULT_BUDGET_NAME,
-        budget,
-      },
-      null,
-      2,
-    );
+    return buildExport(active?.name ?? DEFAULT_BUDGET_NAME, budget);
   }, [budget, store]);
 
   /**
@@ -227,38 +218,11 @@ export function useBudget() {
    */
   const importJson = useCallback(
     (text: string): string | null => {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        return "That file isn't valid JSON.";
-      }
-      if (!parsed || typeof parsed !== 'object') {
-        return "That file doesn't look like a Tiny Budget export.";
-      }
-      const envelope = parsed as { version?: unknown; budget?: unknown; name?: unknown };
-      if (typeof envelope.version !== 'number' || !envelope.budget || typeof envelope.budget !== 'object') {
-        return "That file doesn't look like a Tiny Budget export.";
-      }
-      if (envelope.version > CURRENT_VERSION) {
-        return 'That file was made by a newer version of Tiny Budget.';
-      }
-      // readBudget falls back to an empty budget for anything it can't parse,
-      // so a file that reads as blank but wasn't is a failure, not an import.
-      const migrated = readBudget(envelope);
-      const looksEmpty =
-        migrated.expenses.length === 0 &&
-        migrated.incomes.length === 0 &&
-        migrated.oneOffs.length === 0 &&
-        migrated.currentBalance === 0;
-      const sourceHadContent = JSON.stringify(envelope.budget).length > 80;
-      if (looksEmpty && sourceHadContent) {
-        return "That file couldn't be read as a budget.";
-      }
-      const name = typeof envelope.name === 'string' && envelope.name.trim() ? envelope.name : 'Imported budget';
+      const result = parseImport(text);
+      if (!result.ok) return result.error;
       setStored((prev) => {
         const current = readStore(prev);
-        const entry = makeEntry(name, migrated);
+        const entry = makeEntry(result.name, result.budget);
         return { ...current, activeId: entry.id, budgets: [...current.budgets, entry] };
       });
       return null;

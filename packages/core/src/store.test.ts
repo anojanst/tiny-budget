@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readBudget, readStore } from './store';
+import { CURRENT_VERSION, buildExport, parseImport, readBudget, readStore } from './store';
 import { toDateInputValue } from './dates';
 
 /**
@@ -195,5 +195,100 @@ describe('readStore — the multi-budget envelope', () => {
   it('falls back to an empty budget for junk rather than throwing', () => {
     expect(readStore(null).budgets).toHaveLength(1);
     expect(readStore({ version: 10, budgets: [] }).budgets).toHaveLength(1);
+  });
+});
+
+/**
+ * A backup file is the only copy of someone's budget that survives losing the
+ * phone, so the failure modes matter more than the happy path: a file that
+ * isn't a backup has to be *refused*, because `readBudget` on its own answers
+ * "empty budget" to anything it can't parse, and importing that silently
+ * would look like the file was fine and the budget was blank.
+ */
+describe('parseImport', () => {
+  const backup = buildExport('Household', readBudget({ version: 7, budget: legacyBudget }, AT));
+
+  it('round-trips what buildExport wrote', () => {
+    const result = parseImport(backup, AT);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.name).toBe('Household');
+    expect(result.budget.expenses).toHaveLength(1);
+    expect(result.budget.currentBalance).toBe(250);
+  });
+
+  it('migrates an export written before goals and debts were retired', () => {
+    const old = JSON.stringify({
+      app: 'tiny-budget',
+      version: 7,
+      name: 'Old phone',
+      budget: {
+        ...legacyBudget,
+        debts: [{ id: 'd1', name: 'Car loan', balance: 9000, minimumPayment: 100, apr: 0.1 }],
+      },
+    });
+    const result = parseImport(old, AT);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.budget.expenses.map((e) => e.name)).toContain('Car loan');
+  });
+
+  it('refuses text that is not JSON', () => {
+    expect(parseImport('not json at all', AT)).toEqual({
+      ok: false,
+      error: "That file isn't valid JSON.",
+    });
+  });
+
+  it.each([['null', 'null'], ['an array', '[]'], ['a bare number', '42']])(
+    'refuses %s',
+    (_label, text) => {
+      const result = parseImport(text, AT);
+      expect(result.ok).toBe(false);
+    },
+  );
+
+  it('refuses a JSON file that is not an export envelope', () => {
+    const result = parseImport(JSON.stringify({ hello: 'world' }), AT);
+    expect(result).toEqual({
+      ok: false,
+      error: "That file doesn't look like a Tiny Budget export.",
+    });
+  });
+
+  it('refuses a file from a newer version rather than guessing at it', () => {
+    const future = JSON.stringify({ version: CURRENT_VERSION + 1, budget: legacyBudget });
+    expect(parseImport(future, AT)).toEqual({
+      ok: false,
+      error: 'That file was made by a newer version of Tiny Budget.',
+    });
+  });
+
+  it('refuses a budget with content that reads back as empty', () => {
+    // Shaped like an envelope, but nothing inside is a budget field, so the
+    // migration chain hands back an empty budget. Importing that would look
+    // like a success and lose the file's actual contents.
+    const junk = JSON.stringify({
+      version: 11,
+      budget: { somethingElse: Array.from({ length: 20 }, (_, i) => ({ id: i, value: i })) },
+    });
+    expect(parseImport(junk, AT)).toEqual({
+      ok: false,
+      error: "That file couldn't be read as a budget.",
+    });
+  });
+
+  it('accepts a genuinely empty budget, which is not the same as unreadable', () => {
+    const empty = JSON.stringify({ version: 11, budget: { incomes: [], expenses: [], oneOffs: [], currentBalance: 0 } });
+    const result = parseImport(empty, AT);
+    expect(result.ok).toBe(true);
+  });
+
+  it('names an unnamed import rather than leaving it blank', () => {
+    const unnamed = JSON.stringify({ version: 11, budget: { ...legacyBudget, name: undefined } });
+    const result = parseImport(unnamed, AT);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.name).toBe('Imported budget');
   });
 });

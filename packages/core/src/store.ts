@@ -314,3 +314,63 @@ export const initialStoredState: StoredState = (() => {
   };
   return { version: CURRENT_VERSION, activeId: entry.id, budgets: [entry] };
 })();
+
+/** What a backup file turned into, or why it couldn't be read. */
+export type ImportResult =
+  | { ok: true; name: string; budget: Budget }
+  | { ok: false; error: string };
+
+/**
+ * Reads an exported backup.
+ *
+ * This lives in core rather than in either client because the failure modes
+ * are the interesting part, and they should read the same on both: a file
+ * that isn't a backup must be refused rather than quietly imported as an
+ * empty budget, which is what `readBudget`'s own fallback would do.
+ */
+export function parseImport(text: string, today = startOfToday()): ImportResult {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { ok: false, error: "That file isn't valid JSON." };
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    return { ok: false, error: "That file doesn't look like a Tiny Budget export." };
+  }
+  const envelope = parsed as { version?: unknown; budget?: unknown; name?: unknown };
+  if (
+    typeof envelope.version !== 'number' ||
+    !envelope.budget ||
+    typeof envelope.budget !== 'object'
+  ) {
+    return { ok: false, error: "That file doesn't look like a Tiny Budget export." };
+  }
+  if (envelope.version > CURRENT_VERSION) {
+    return { ok: false, error: 'That file was made by a newer version of Tiny Budget.' };
+  }
+  // readBudget falls back to an empty budget for anything it can't parse, so a
+  // file that reads as blank but wasn't is a failure, not an import.
+  const budget = readBudget(envelope, today);
+  const looksEmpty =
+    budget.expenses.length === 0 &&
+    budget.incomes.length === 0 &&
+    budget.oneOffs.length === 0 &&
+    budget.currentBalance === 0;
+  const sourceHadContent = JSON.stringify(envelope.budget).length > 80;
+  if (looksEmpty && sourceHadContent) {
+    return { ok: false, error: "That file couldn't be read as a budget." };
+  }
+  const name =
+    typeof envelope.name === 'string' && envelope.name.trim() ? envelope.name : 'Imported budget';
+  return { ok: true, name, budget };
+}
+
+/** The envelope both clients write, so an export from either imports into either. */
+export function buildExport(name: string, budget: Budget): string {
+  return JSON.stringify(
+    { app: 'tiny-budget', version: CURRENT_VERSION, exportedAt: new Date().toISOString(), name, budget },
+    null,
+    2,
+  );
+}

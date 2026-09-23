@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   formatCurrency,
+  formatShortDate,
+  parseLocalDate,
   toWeeklyAmount,
   type Frequency,
   type MoneyEntry,
 } from '@tiny-budget/core';
+import { DateField } from './DateField';
 import { Button, Card, Field } from './ui';
 import { radius, space, usePalette } from '../theme';
 
@@ -76,6 +79,7 @@ export function EntryRow({
   const p = usePalette();
   const [open, setOpen] = useState(false);
   const weekly = toWeeklyAmount(entry.amount, entry.frequency);
+  const due = entry.nextDue ? parseLocalDate(entry.nextDue) : null;
 
   return (
     <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.line }}>
@@ -91,7 +95,7 @@ export function EntryRow({
             {entry.name || 'Untitled'}
           </Text>
           <Text style={[styles.rowMeta, { color: p.muted }]}>
-            {entry.nextDue ? `Next ${entry.nextDue}` : 'No date — spread evenly'}
+            {due ? `Next ${formatShortDate(due)}` : 'No date — spread evenly'}
           </Text>
         </View>
         <Text
@@ -126,20 +130,21 @@ export function EntryRow({
               label="How often"
             />
           </View>
-          <Field
-            label="Next due (YYYY-MM-DD)"
+          <DateField
+            label="Next due"
             value={entry.nextDue ?? ''}
-            placeholder="2026-10-01"
-            autoCapitalize="none"
-            onChangeText={(text) => onUpdate(entry.id, { nextDue: text || undefined })}
+            optional
+            placeholder="No date — spread evenly"
+            onChange={(next) => onUpdate(entry.id, { nextDue: next || undefined })}
             accessibilityLabel="Next due date"
           />
-          <Field
-            label="Ends (optional)"
+          <DateField
+            label="Ends"
             value={entry.endDate ?? ''}
-            placeholder="2029-09-20"
-            autoCapitalize="none"
-            onChangeText={(text) => onUpdate(entry.id, { endDate: text || undefined })}
+            optional
+            placeholder="Never"
+            minimumDate={due ?? undefined}
+            onChange={(next) => onUpdate(entry.id, { endDate: next || undefined })}
             accessibilityLabel="End date"
           />
           <Button label="Remove" variant="danger" onPress={() => onRemove(entry.id)} />
@@ -149,13 +154,21 @@ export function EntryRow({
   );
 }
 
-/** The add form, shared by income and expenses. */
+/**
+ * The add form, shared by income and expenses.
+ *
+ * The date is asked for here rather than only in the row that appears
+ * afterwards, because the date is the thing that puts an entry on the
+ * calendar — asking for it later meant most entries never got one and the
+ * calendar stayed a drip. It stays optional: "I don't know when" is a real
+ * answer, and an entry without a date is still worth having.
+ */
 export function AddEntry({
   onAdd,
   noun,
   defaultFrequency,
 }: {
-  onAdd: (name: string, amount: number, frequency: Frequency) => void;
+  onAdd: (name: string, amount: number, frequency: Frequency, nextDue?: string) => void;
   noun: string;
   defaultFrequency: Frequency;
 }) {
@@ -163,13 +176,15 @@ export function AddEntry({
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [frequency, setFrequency] = useState<Frequency>(defaultFrequency);
+  const [nextDue, setNextDue] = useState('');
 
   const submit = () => {
     const parsed = Number(amount);
     if (!name.trim() || !Number.isFinite(parsed) || parsed <= 0) return;
-    onAdd(name.trim(), parsed, frequency);
+    onAdd(name.trim(), parsed, frequency, nextDue || undefined);
     setName('');
     setAmount('');
+    setNextDue('');
   };
 
   return (
@@ -194,9 +209,19 @@ export function AddEntry({
         />
       </View>
       <FrequencyPicker value={frequency} onChange={setFrequency} label={`How often the ${noun} repeats`} />
+      <DateField
+        label="Next due — optional"
+        value={nextDue}
+        optional
+        placeholder="No date — spread evenly"
+        onChange={setNextDue}
+        accessibilityLabel={`Next ${noun} date`}
+      />
       <Button label={`Add ${noun}`} onPress={submit} disabled={!name.trim() || !Number(amount)} />
       <Text style={{ color: p.muted, fontSize: 12 }}>
-        Add a date afterwards by tapping the row — that is what puts it on the calendar.
+        {nextDue
+          ? 'It lands on that day, then repeats on the cycle above.'
+          : 'Without a date it is spread evenly instead of landing on a day. You can add one later.'}
       </Text>
     </Card>
   );
