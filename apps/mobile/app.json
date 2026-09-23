@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Tiny Budget",
+    "slug": "tiny-budget",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "tinybudget",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.tinybudget.app" },
+    "android": {
+      "package": "com.tinybudget.app",
+      "edgeToEdgeEnabled": true
+    },
+    "web": { "bundler": "metro", "output": "single" },
+    "plugins": ["expo-router"]
+  }
+}

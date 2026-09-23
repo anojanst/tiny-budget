@@ -1,6 +1,6 @@
 # tiny-budget
 
-A cash calendar. Enter what comes in and what goes out, give each one a date,
+A cash calendar, on the web and on a phone. Enter what comes in and what goes out, give each one a date,
 and see what you're actually left holding on any day of the month.
 
 Everything runs in the browser and persists to `localStorage`. No backend, no
@@ -74,6 +74,21 @@ The trade-off is real and worth stating: you lose the automatic debt-free date
 and the snowball's rolling payments. What you get back is one model instead of
 three, and a payoff date you can *see* on a calendar rather than trust.
 
+## Repository layout
+
+An npm workspace with one shared package and two clients:
+
+```
+packages/core   the money engine — projection, weekly math, store + migrations
+src/            the web app (Vite + React + Tailwind)
+apps/mobile/    the phone app (Expo + React Native)
+```
+
+`@tiny-budget/core` imports no React, no bundler alias and no browser global,
+so the same source runs in both clients and in a plain Node test run. Seeded
+with the same budget, both print the same figures. Each client brings only its
+own storage: `localStorage` on the web, `AsyncStorage` on the phone.
+
 ## Getting started
 
 ```bash
@@ -98,6 +113,7 @@ npx vite preview
 | `npm run preview` | Serve the production build |
 | `npm test` | Unit tests for the cashflow and migration logic (Vitest) |
 | `npm run lint` | Oxlint |
+| `npm run mobile` | Expo dev server for the phone app |
 
 ## Layout
 
