@@ -18,7 +18,8 @@
         "start",
         "--web",
         "--port",
-        "8081"
+        "8081",
+        "--clear"
       ],
       "cwd": "apps/mobile",
       "port": 8081

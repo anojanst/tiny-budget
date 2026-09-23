@@ -100,6 +100,16 @@ error — it silently moves a bill, and the projection quietly becomes wrong.
 `DateField` shows the date the way people read one and hands back the format
 the store wants, so the two never have to agree in a user's head.
 
+The picker itself is platform-split. `@react-native-community/datetimepicker`
+ships no web build — the module it falls back to renders `null` and logs a
+warning — so on the web the field drew correctly and tapping it opened
+nothing. `DateField.web.tsx` reaches for the browser's own picker instead,
+through an invisible `<input type="date">` laid over the control and opened
+with `showPicker()`; clicking a date input only moves between its day/month/
+year segments, so the press handler has to call that method explicitly. Both
+files share `dateFieldShell.tsx`, so the two differ in mechanism only and the
+control cannot drift into looking like two different things.
+
 Recurring entries ask for the date **in the add form**, not only in the row
 that appears afterwards. It stays optional, because undated is a real state
 here and not an empty field waiting to be filled — but asking later meant
