@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "keystore": "bash scripts/make-keystore.sh"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

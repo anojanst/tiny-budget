@@ -15,11 +15,32 @@ Every Android app is signed, and the signature is the app's identity. Keep
 this file safe **forever** — see the warning at the bottom.
 
 ```bash
-keytool -genkeypair -v -keystore tiny-budget.keystore \
-  -alias tiny-budget -keyalg RSA -keysize 2048 -validity 10000
+npm run keystore --workspace @tiny-budget/mobile
 ```
 
-It asks for a password and some identity fields; the fields can be anything.
+It asks for a password and some identity fields; the fields can be anything,
+and the password is typed into keytool directly rather than passed through a
+script.
+
+**If you get `keytool: command not found`,** you almost certainly do not need
+to install a JDK. `keytool` lives inside one, and on a machine set up for
+Android development the JDK is usually the one bundled with Android Studio
+rather than one installed separately — it is just not on `PATH`. The script
+above looks in the usual places, including Android Studio's, so run it instead
+of calling `keytool` directly. To call it by hand:
+
+```bash
+# Android Studio installed as a snap
+/snap/android-studio/current/jbr/bin/keytool -genkeypair -v \
+  -keystore tiny-budget.keystore -alias tiny-budget \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Only if no JDK exists at all: `sudo apt install openjdk-17-jre-headless`.
+
+The script refuses to overwrite an existing keystore, because replacing one is
+unrecoverable — a new key is a new app identity, and every install has to be
+removed before the next build will go on.
 
 ### 2. Put it in GitHub Secrets
 
