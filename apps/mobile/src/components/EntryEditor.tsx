@@ -43,11 +43,11 @@ export function FrequencyPicker({
             onPress={() => onChange(f.value)}
             style={[
               styles.freqChip,
-              { borderColor: p.border },
-              active && { backgroundColor: p.primary, borderColor: p.primary },
+              { borderColor: p.line },
+              active && { backgroundColor: p.tide, borderColor: p.tide },
             ]}
           >
-            <Text style={{ color: active ? p.primaryText : p.muted, fontSize: 12, fontWeight: '600' }}>
+            <Text style={{ color: active ? '#FFFFFF' : p.muted, fontSize: 12, fontWeight: '600' }}>
               {f.short}
             </Text>
           </Pressable>
@@ -78,7 +78,7 @@ export function EntryRow({
   const weekly = toWeeklyAmount(entry.amount, entry.frequency);
 
   return (
-    <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.border }}>
+    <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.line }}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${entry.name || 'Untitled'}, ${formatCurrency(weekly)} per week`}
@@ -95,7 +95,7 @@ export function EntryRow({
           </Text>
         </View>
         <Text
-          style={[styles.rowAmount, { color: tone === 'in' ? p.primary : p.text }]}
+          style={[styles.rowAmount, { color: tone === 'in' ? p.tide : p.text }]}
         >
           {tone === 'in' ? '+' : '−'}
           {formatCurrency(weekly)}/wk
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   freqChip: {
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: radius.sm,
+    borderRadius: radius.chip,
     borderWidth: StyleSheet.hairlineWidth,
   },
 });

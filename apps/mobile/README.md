@@ -37,6 +37,32 @@ Recurring entries collapse to one line each (name, next date, weekly cost) and
 open on tap. Twenty expenses with five fields each is a wall; the summary line
 is what people actually scan.
 
+## Visual direction
+
+The palette is a depth gauge rather than decoration. Most budgeting apps are
+fintech blue — the colour of a bank rather than of your own money — and they
+keep red for a rare error state. This app's most important screen is often the
+one saying you run out on the 14th, so "running low" and "under" are
+first-class colours sharing one scale with "fine": deep water, shallows,
+aground.
+
+The hero answers the question the app exists for — how low does this month get,
+and when — and draws the curve that produces it, marking only the low point and
+the waterline. Reference fintech kits chart a portfolio going up and to the
+right; this one is honest about dipping, because the dip is the reason to open
+the app.
+
+Three states, one scale:
+
+| Lowest point | Reads as | Wording |
+| --- | --- | --- |
+| Comfortably clear | tide green | just the date |
+| Under a week of bills | shoal amber | "less than a week's bills left" |
+| Below zero | aground red | "you run out" |
+
+The middle state is the one that earns its place: a binary red can only tell
+you after it is too late to move anything.
+
 ## The one hazard worth knowing
 
 AsyncStorage reads are asynchronous, so the first render holds the *default*

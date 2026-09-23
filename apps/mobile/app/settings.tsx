@@ -30,7 +30,7 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView
-      style={{ backgroundColor: p.bg }}
+      style={{ backgroundColor: p.paper }}
       contentContainerStyle={styles.screen}
       keyboardShouldPersistTaps="handled"
     >
@@ -47,7 +47,7 @@ export default function SettingsScreen() {
                 key={entry.id}
                 style={[
                   styles.row,
-                  index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.border },
+                  index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.line },
                 ]}
               >
                 <Pressable
@@ -60,8 +60,8 @@ export default function SettingsScreen() {
                   <View
                     style={[
                       styles.radio,
-                      { borderColor: active ? p.primary : p.border },
-                      active && { backgroundColor: p.primary },
+                      { borderColor: active ? p.tide : p.line },
+                      active && { backgroundColor: p.tide },
                     ]}
                   />
                   <Text style={{ color: p.text, fontWeight: active ? '700' : '500' }}>

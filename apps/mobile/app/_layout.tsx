@@ -18,12 +18,12 @@ export default function RootLayout() {
         <StatusBar style="auto" />
         <Tabs
           screenOptions={{
-            headerStyle: { backgroundColor: p.bg },
+            headerStyle: { backgroundColor: p.paper },
             headerTitleStyle: { color: p.text },
             headerShadowVisible: false,
-            sceneStyle: { backgroundColor: p.bg },
-            tabBarStyle: { backgroundColor: p.card, borderTopColor: p.border },
-            tabBarActiveTintColor: p.primary,
+            sceneStyle: { backgroundColor: p.paper },
+            tabBarStyle: { backgroundColor: p.surface, borderTopColor: p.line },
+            tabBarActiveTintColor: p.tide,
             tabBarInactiveTintColor: p.muted,
           }}
         >

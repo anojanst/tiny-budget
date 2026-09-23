@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import {
   addMonths,
   buildCashflowDays,
@@ -10,36 +11,30 @@ import {
   isSameDay,
   startOfMonth,
   toDateInputValue,
+  weeksBetween,
   type CalendarDay,
 } from '@tiny-budget/core';
 import { useBudgetContext } from '../src/budgetContext';
-import { Button, Card, Empty, SectionTitle, StatTile } from '../src/components/ui';
-import { radius, space, usePalette } from '../src/theme';
+import { BalanceCurve } from '../src/components/BalanceCurve';
+import { Card, Empty, QuickAction, SectionTitle } from '../src/components/ui';
+import { radius, space, type as t, usePalette } from '../src/theme';
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const MAX_MONTHS = 60;
 
-/**
- * The calendar, rebuilt for a phone rather than shrunk to fit one.
- *
- * On the web the month grid carries the figures in its cells. At 375px a cell
- * is barely wider than its date, so here the grid is a *map* — dots for what
- * happens, a ring for today, a red wash for a day you run out — and the agenda
- * beneath it carries the detail. Tapping a day scrolls the agenda to it.
- */
 export default function CalendarScreen() {
   const { budget, today, loaded } = useBudgetContext();
   const [monthOffset, setMonthOffset] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const p = usePalette();
+  const router = useRouter();
+  const { width } = useWindowDimensions();
 
   const visibleMonth = useMemo(
     () => addMonths(startOfMonth(today), monthOffset),
     [today, monthOffset],
   );
 
-  // Always projected from today, however far ahead the view is scrolled — a
-  // balance is only meaningful as the running total of everything before it.
   const days = useMemo(
     () =>
       buildCashflowDays({
@@ -83,19 +78,31 @@ export default function CalendarScreen() {
       (d.isPayday || d.bills.length > 0 || d.credits.length > 0) &&
       d.date.getTime() >= today.getTime(),
   );
-  const lowest = monthDays.reduce<CalendarDay | null>(
+  const low = monthDays.reduce<CalendarDay | null>(
     (min, d) => (min === null || d.balance < min.balance ? d : min),
     null,
   );
-  const paydays = monthDays.filter((d) => d.isPayday);
-  const firstShort = days.find((d) => d.short) ?? null;
   const hasAnything =
     budget.incomes.length > 0 || budget.expenses.length > 0 || budget.oneOffs.length > 0;
   const undated = [...budget.incomes, ...budget.expenses].filter((e) => !e.nextDue).length;
 
+  // Three states, one scale: under, shallow, clear. "Shallow" is a week of
+  // outgoings — a buffer thinner than that is worth naming before it's a
+  // shortfall, which is the warning an all-or-nothing red can never give.
+  const weeklyOut = budget.expenses.reduce(
+    (sum, e) => sum + e.amount / (e.frequency === 'weekly' ? 1 : 4.333),
+    0,
+  );
+  const tone: 'bad' | 'warn' | 'good' =
+    !low || !hasAnything ? 'good' : low.balance < 0 ? 'bad' : low.balance < weeklyOut ? 'warn' : 'good';
+  const toneColor = tone === 'bad' ? p.aground : tone === 'warn' ? p.shoal : p.tide;
+
+  const daysAway = low ? Math.max(Math.round(weeksBetween(today, low.date) * 7), 0) : 0;
+  const heroWidth = Math.max(width - space.lg * 2 - space.lg * 2, 120);
+
   if (!loaded) {
     return (
-      <View style={[styles.screen, { backgroundColor: p.bg, justifyContent: 'center' }]}>
+      <View style={[styles.screen, { backgroundColor: p.paper, justifyContent: 'center', flex: 1 }]}>
         <Empty>Loading your budget…</Empty>
       </View>
     );
@@ -103,80 +110,97 @@ export default function CalendarScreen() {
 
   return (
     <ScrollView
-      style={{ backgroundColor: p.bg }}
+      style={{ backgroundColor: p.paper }}
       contentContainerStyle={styles.screen}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.monthBar}>
-        <Button
-          label="‹"
-          variant="ghost"
-          disabled={monthOffset === 0}
-          onPress={() => setMonthOffset((m) => Math.max(m - 1, 0))}
-          style={{ paddingHorizontal: space.lg }}
-        />
-        <Pressable onPress={() => setMonthOffset(0)} accessibilityRole="button">
-          <Text style={[styles.monthLabel, { color: p.text }]}>
-            {formatMonthYear(visibleMonth)}
+      {/* The hero answers the one question the app exists for — how low does
+          this month get, and when — and shows the shape that produces it. */}
+      <View style={[styles.hero, { backgroundColor: p.deep }]}>
+        <View style={styles.heroTop}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Previous month"
+            disabled={monthOffset === 0}
+            onPress={() => setMonthOffset((m) => Math.max(m - 1, 0))}
+            style={styles.arrow}
+          >
+            <Text style={{ color: monthOffset === 0 ? p.onDeepMuted : p.onDeep, fontSize: 20 }}>‹</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => setMonthOffset(0)}>
+            <Text style={[t.label, { color: p.onDeep }]}>{formatMonthYear(visibleMonth)}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Next month"
+            disabled={monthOffset === MAX_MONTHS}
+            onPress={() => setMonthOffset((m) => Math.min(m + 1, MAX_MONTHS))}
+            style={styles.arrow}
+          >
+            <Text style={{ color: p.onDeep, fontSize: 20 }}>›</Text>
+          </Pressable>
+        </View>
+
+        <Text style={[t.small, { color: p.onDeepMuted }]}>
+          {hasAnything ? 'Lowest this month' : 'Nothing projected yet'}
+        </Text>
+        <Text
+          style={[t.hero, { color: hasAnything ? toneColor : p.onDeepMuted, fontVariant: ['tabular-nums'] }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
+          {low && hasAnything ? formatCurrency(low.balance) : '—'}
+        </Text>
+        {low && hasAnything ? (
+          <Text style={[t.small, { color: p.onDeepMuted }]}>
+            {formatShortDate(low.date)}
+            {daysAway === 0 ? ' · today' : daysAway === 1 ? ' · tomorrow' : ` · in ${daysAway} days`}
+            {tone === 'bad'
+              ? ' · you run out'
+              : tone === 'warn'
+                ? " · less than a week's bills left"
+                : ''}
           </Text>
-        </Pressable>
-        <Button
-          label="›"
-          variant="ghost"
-          disabled={monthOffset === MAX_MONTHS}
-          onPress={() => setMonthOffset((m) => Math.min(m + 1, MAX_MONTHS))}
-          style={{ paddingHorizontal: space.lg }}
-        />
+        ) : (
+          <Text style={[t.small, { color: p.onDeepMuted }]}>
+            Add what comes in and goes out, and this fills in.
+          </Text>
+        )}
+
+        <View style={{ marginTop: space.md }}>
+          <BalanceCurve days={days} palette={p} width={heroWidth} tone={tone} />
+        </View>
+        <View style={styles.heroFoot}>
+          <Text style={[t.small, { color: p.onDeepMuted }]}>
+            {formatCurrency(budget.currentBalance)} today
+          </Text>
+          <Text style={[t.small, { color: p.onDeepMuted }]}>
+            {formatCurrency(days[days.length - 1]?.balance ?? 0)} by month end
+          </Text>
+        </View>
       </View>
 
-      {!hasAnything && (
-        <Card>
-          <Text style={{ color: p.text }}>
-            Nothing to draw yet. Add what comes in and what goes out on the In &amp; out tab, give
-            each one a date, and it lands here.
-          </Text>
-        </Card>
-      )}
+      <View style={styles.quickRow}>
+        <QuickAction glyph="↓" label="Income" onPress={() => router.push('/money')} />
+        <QuickAction glyph="↑" label="Payment" onPress={() => router.push('/money')} />
+        <QuickAction glyph="•" label="One-off" onPress={() => router.push('/money')} />
+        <QuickAction glyph="≡" label="All money" onPress={() => router.push('/money')} />
+      </View>
 
       {hasAnything && undated > 0 && (
-        <Card style={{ borderColor: p.border }}>
-          <Text style={{ color: p.muted, fontSize: 13, lineHeight: 18 }}>
+        <Card style={{ backgroundColor: p.shoalWash, borderColor: p.shoal }}>
+          <Text style={[t.small, { color: p.shoal, lineHeight: 18 }]}>
             {undated} {undated === 1 ? 'entry has' : 'entries have'} no date, so{' '}
-            {undated === 1 ? 'it is' : 'they are'} spread evenly rather than landing on a day.
-            Dating {undated === 1 ? 'it' : 'them'} turns this into an actual schedule.
+            {undated === 1 ? 'it is' : 'they are'} spread evenly instead of landing on a day. Dating{' '}
+            {undated === 1 ? 'it' : 'them'} turns this into an actual schedule.
           </Text>
         </Card>
       )}
 
-      {firstShort && (
-        <Card style={{ backgroundColor: p.dangerBg, borderColor: p.danger }}>
-          <Text style={{ color: p.danger, fontWeight: '600' }}>
-            You run out of money on {formatShortDate(firstShort.date)}
-          </Text>
-          <Text style={{ color: p.danger, fontSize: 13 }}>
-            Down to {formatCurrency(firstShort.balance)}. Something before then needs to move.
-          </Text>
-        </Card>
-      )}
-
-      <View style={styles.tiles}>
-        <StatTile
-          label="Lowest point"
-          value={lowest ? formatCurrency(lowest.balance) : '—'}
-          hint={lowest ? `On ${formatShortDate(lowest.date)}` : 'Nothing projected yet'}
-          tone={lowest && lowest.balance < 0 ? 'bad' : 'normal'}
-        />
-        <StatTile
-          label="Cash today"
-          value={formatCurrency(budget.currentBalance)}
-          hint={`${paydays.length} payday${paydays.length === 1 ? '' : 's'} this month`}
-        />
-      </View>
-
-      <Card>
+      <Card style={{ gap: space.sm }}>
         <View style={styles.weekRow}>
           {WEEKDAYS.map((d, i) => (
-            <Text key={`${d}${i}`} style={[styles.weekday, { color: p.muted }]}>
+            <Text key={`${d}${i}`} style={[t.small, styles.weekday, { color: p.muted }]}>
               {d}
             </Text>
           ))}
@@ -201,46 +225,39 @@ export default function CalendarScreen() {
                 onPress={() => setSelected(isSelected ? null : key)}
                 style={[
                   styles.cell,
-                  isSelected && { backgroundColor: p.accentBg, borderColor: p.primary },
-                  entry?.short && { backgroundColor: p.dangerBg },
-                  isToday && { borderColor: p.text, borderWidth: 1.5 },
+                  entry?.short && { backgroundColor: p.agroundWash },
+                  isSelected && { backgroundColor: p.tideWash, borderColor: p.tide },
+                  isToday && { borderColor: p.text },
                 ]}
               >
                 <Text
                   style={[
+                    t.small,
                     styles.cellDate,
                     { color: inMonth ? (isPast ? p.muted : p.text) : 'transparent' },
-                    isToday && { fontWeight: '800' },
+                    isToday && { fontWeight: '700' },
                   ]}
                 >
                   {date.getDate()}
                 </Text>
                 <View style={styles.dots}>
-                  {moneyIn && !isPast && (
-                    <View style={[styles.dot, { backgroundColor: p.primary }]} />
-                  )}
-                  {moneyOut && !isPast && (
-                    <View style={[styles.dot, { backgroundColor: p.muted }]} />
-                  )}
+                  {moneyIn && !isPast && <View style={[styles.dot, { backgroundColor: p.tide }]} />}
+                  {moneyOut && !isPast && <View style={[styles.dot, { backgroundColor: p.muted }]} />}
                 </View>
               </Pressable>
             );
           })}
         </View>
         {selected && byKey.get(selected) ? (
-          <Text style={[styles.selectedLine, { color: p.text, borderTopColor: p.border }]}>
-            {formatShortDate(byKey.get(selected)!.date)} —{' '}
-            {formatCurrency(byKey.get(selected)!.balance)} left
+          <Text style={[t.label, styles.selectedLine, { color: p.text, borderTopColor: p.line }]}>
+            {formatShortDate(byKey.get(selected)!.date)} — {formatCurrency(byKey.get(selected)!.balance)} left
           </Text>
         ) : null}
       </Card>
 
       <View>
-        <SectionTitle
-          title="What's coming"
-          hint="Every movement this month, and what it leaves you holding."
-        />
-        <Card style={{ gap: 0 }}>
+        <SectionTitle title="What's coming" hint="Every movement, and what it leaves you holding." />
+        <Card style={{ gap: 0, paddingVertical: space.xs }}>
           {events.length === 0 ? (
             <Empty>Nothing dated in {formatMonthYear(visibleMonth)}.</Empty>
           ) : (
@@ -249,33 +266,37 @@ export default function CalendarScreen() {
                 key={entry.key}
                 style={[
                   styles.event,
-                  index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.border },
+                  index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.line },
                 ]}
               >
-                <Text style={[styles.eventDate, { color: p.muted }]}>
-                  {entry.date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-                </Text>
-                <View style={{ flex: 1, gap: 2 }}>
-                  {entry.paydays.map((pay) => (
-                    <Text key={pay.id} style={[styles.in, { color: p.primary }]}>
-                      {pay.name} +{formatCurrency(pay.amount)}
-                    </Text>
-                  ))}
-                  {entry.credits.map((credit) => (
-                    <Text key={credit.id} style={[styles.in, { color: p.primary }]}>
-                      {credit.name} +{formatCurrency(credit.amount)}
+                <View style={styles.eventDate}>
+                  <Text style={[t.small, { color: p.muted }]}>
+                    {entry.date.toLocaleDateString(undefined, { month: 'short' })}
+                  </Text>
+                  <Text style={[t.label, { color: p.text, fontWeight: '600' }]}>
+                    {entry.date.getDate()}
+                  </Text>
+                </View>
+                <View style={{ flex: 1, gap: 3 }}>
+                  {[...entry.paydays, ...entry.credits].map((item) => (
+                    <Text key={item.id} style={[t.body, { color: p.tide, fontWeight: '600' }]}>
+                      {item.name} +{formatCurrency(item.amount)}
                     </Text>
                   ))}
                   {entry.bills.map((bill) => (
-                    <Text key={bill.id} style={[styles.out, { color: p.muted }]}>
+                    <Text key={bill.id} style={[t.body, { color: p.muted }]}>
                       {bill.name} −{formatCurrency(bill.amount)}
                     </Text>
                   ))}
                 </View>
                 <Text
                   style={[
-                    styles.balance,
-                    { color: entry.short ? p.danger : p.text },
+                    t.label,
+                    {
+                      color: entry.short ? p.aground : p.text,
+                      fontWeight: '700',
+                      fontVariant: ['tabular-nums'],
+                    },
                   ]}
                 >
                   {formatCurrency(entry.balance)}
@@ -291,36 +312,39 @@ export default function CalendarScreen() {
 
 const styles = StyleSheet.create({
   screen: { padding: space.lg, gap: space.lg, paddingBottom: space.xl * 2 },
-  monthBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  monthLabel: { fontSize: 20, fontWeight: '700', letterSpacing: -0.3 },
-  tiles: { flexDirection: 'row', gap: space.md },
-  weekRow: { flexDirection: 'row', marginBottom: space.xs },
-  weekday: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '600' },
+  hero: { borderRadius: radius.hero, padding: space.lg, gap: 2 },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: space.sm,
+  },
+  arrow: { paddingHorizontal: space.sm, paddingVertical: 2 },
+  heroFoot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: space.xs },
+  quickRow: { flexDirection: 'row', gap: space.sm },
+  weekRow: { flexDirection: 'row' },
+  weekday: { flex: 1, textAlign: 'center', fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: {
     width: `${100 / 7}%`,
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.sm,
+    borderRadius: radius.chip,
     borderWidth: 1,
     borderColor: 'transparent',
     gap: 3,
   },
-  cellDate: { fontSize: 13, fontVariant: ['tabular-nums'] },
+  cellDate: { fontVariant: ['tabular-nums'] },
   dots: { flexDirection: 'row', gap: 3, height: 5 },
   dot: { width: 5, height: 5, borderRadius: 3 },
   selectedLine: {
-    marginTop: space.sm,
+    marginTop: space.xs,
     paddingTop: space.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    fontSize: 13,
-    fontWeight: '600',
     textAlign: 'center',
+    fontWeight: '600',
   },
-  event: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingVertical: 10 },
-  eventDate: { width: 52, fontSize: 13, fontVariant: ['tabular-nums'] },
-  in: { fontSize: 14, fontWeight: '600' },
-  out: { fontSize: 14 },
-  balance: { fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  event: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 11 },
+  eventDate: { width: 34, alignItems: 'center' },
 });
