@@ -60,11 +60,26 @@ jobs:
         working-directory: apps/mobile
         run: npx expo prebuild --platform android --no-install
 
+      # Gradle's caches survive between runs, which is most of the difference
+      # between a cold 25-minute build and a warm one.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('apps/mobile/package.json', 'package-lock.json') }}
+          restore-keys: gradle-${{ runner.os }}-
+
       - name: Build release APK
         working-directory: apps/mobile/android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleRelease --no-daemon
+          # One architecture, not four. arm64-v8a covers every Android phone
+          # of the last decade; the x86 pair exists for emulators and
+          # armeabi-v7a for hardware that predates this app's minimum. Building
+          # all four quadrupled a compile that is mostly React Native's C++.
+          ./gradlew assembleRelease --no-daemon \
+            -PreactNativeArchitectures=arm64-v8a
 
       # Signed after the build rather than through Gradle: prebuild regenerates
       # build.gradle every run, so anything patched into it would be thrown
@@ -83,18 +98,47 @@ jobs:
           fi
           APK=$(find apps/mobile/android/app/build/outputs/apk/release -name '*.apk' | head -1)
           echo "Signing $APK"
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+          # Whitespace-tolerant: a secret this long is usually pasted, and a
+          # paste picks up wrapping and stray spaces that base64 -d rejects
+          # outright with "invalid input".
+          KS="$RUNNER_TEMP/release.keystore"
+          if ! printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$KS" 2>/dev/null; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 is not valid base64 — it was probably truncated in transit. Set it straight from the file instead of pasting: base64 -w0 apps/mobile/tiny-budget.keystore | gh secret set ANDROID_KEYSTORE_BASE64"
+            exit 1
+          fi
+          # A keystore is PKCS12 (30 82 ...) or JKS (FE ED FE ED); anything
+          # else decoded cleanly but is not a keystore, and apksigner's error
+          # for that is far less obvious than this one.
+          MAGIC=$(xxd -p -l 2 "$KS")
+          if [ "$MAGIC" != "3082" ] && [ "$(xxd -p -l 4 "$KS")" != "feedfeed" ]; then
+            echo "::error::The decoded secret is not a keystore (starts $MAGIC). Re-set ANDROID_KEYSTORE_BASE64 from the keystore file."
+            exit 1
+          fi
+          # Magic bytes prove it is *a* keystore but not an intact one — a
+          # truncated file still starts 30 82, and truncation is exactly what a
+          # long pasted secret suffers. Opening it is the only real check, and
+          # it validates the password and alias in the same move, so all three
+          # ways this can be wrong are caught here rather than inside
+          # apksigner where the message is far less clear.
+          if ! keytool -list -keystore "$KS" -storepass "$STORE_PASSWORD" \
+                 -alias "$KEY_ALIAS" >/dev/null 2>&1; then
+            echo "::error::Could not open the keystore. Either ANDROID_KEYSTORE_BASE64 is incomplete (paste it straight from the file: base64 -w0 apps/mobile/tiny-budget.keystore | gh secret set ANDROID_KEYSTORE_BASE64), or ANDROID_STORE_PASSWORD / ANDROID_KEY_ALIAS do not match it."
+            rm -f "$KS"
+            exit 1
+          fi
+          echo "Keystore verified: $(stat -c%s "$KS") bytes, alias present"
           BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           "$BUILD_TOOLS/zipalign" -f -p 4 "$APK" "$RUNNER_TEMP/aligned.apk"
           "$BUILD_TOOLS/apksigner" sign \
-            --ks "$RUNNER_TEMP/release.keystore" \
+            --ks "$KS" \
             --ks-pass "pass:$STORE_PASSWORD" \
             --ks-key-alias "$KEY_ALIAS" \
             --key-pass "pass:$KEY_PASSWORD" \
             --out tiny-budget.apk \
             "$RUNNER_TEMP/aligned.apk"
           "$BUILD_TOOLS/apksigner" verify --print-certs tiny-budget.apk
-          rm -f "$RUNNER_TEMP/release.keystore"
+          rm -f "$KS"
 
       - uses: actions/upload-artifact@v4
         with:
