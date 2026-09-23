@@ -9,7 +9,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { radius, space, type as t, usePalette } from '../theme';
+import { radius, shadow, space, type as t, usePalette } from '../theme';
 
 export type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
 
@@ -17,23 +17,97 @@ export function Card({ children, style }: { children: ReactNode; style?: ViewSty
   const p = usePalette();
   return (
     <View
-      style={[
-        styles.card,
-        { backgroundColor: p.surface, borderColor: p.line, borderWidth: StyleSheet.hairlineWidth },
-        style,
-      ]}
+      style={[styles.card, shadow.card, { backgroundColor: p.surface }, style]}
     >
       {children}
     </View>
   );
 }
 
-export function SectionTitle({ title, hint }: { title: string; hint?: string }) {
+export function SectionTitle({
+  title,
+  hint,
+  action,
+}: {
+  title: string;
+  hint?: string;
+  /** A trailing link, the way a list header carries "See all". */
+  action?: { label: string; onPress: () => void };
+}) {
   const p = usePalette();
   return (
-    <View style={{ marginBottom: space.md, gap: 2 }}>
-      <Text style={[t.title, { color: p.text }]}>{title}</Text>
-      {hint ? <Text style={[t.small, { color: p.muted, lineHeight: 17 }]}>{hint}</Text> : null}
+    <View style={styles.sectionHead}>
+      <View style={{ flex: 1, gap: 1 }}>
+        <Text style={[t.section, { color: p.text }]}>{title}</Text>
+        {hint ? <Text style={[t.small, { color: p.muted, lineHeight: 17 }]}>{hint}</Text> : null}
+      </View>
+      {action ? (
+        <Pressable accessibilityRole="button" onPress={action.onPress} hitSlop={8}>
+          <Text style={[t.label, { color: p.brand, fontWeight: '600' }]}>{action.label}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * A single movement of money: an icon disc that says what kind of thing it is,
+ * the name and its date stacked, and the amount held right. Reading a list of
+ * these is scanning one column of names and one column of figures, rather than
+ * parsing a line of prose per row.
+ */
+export function MovementRow({
+  icon,
+  tint,
+  title,
+  subtitle,
+  amount,
+  amountTone = 'normal',
+  first,
+}: {
+  icon: IconName;
+  tint: 'brand' | 'mint' | 'peach' | 'slate' | 'rose';
+  title: string;
+  subtitle: string;
+  amount: string;
+  amountTone?: 'normal' | 'in' | 'bad';
+  first?: boolean;
+}) {
+  const p = usePalette();
+  const wash =
+    tint === 'mint' ? p.mintWash
+    : tint === 'peach' ? p.peachWash
+    : tint === 'rose' ? p.roseWash
+    : tint === 'brand' ? p.brandWash
+    : p.slateWash;
+  const ink =
+    tint === 'mint' ? p.mint
+    : tint === 'peach' ? p.peach
+    : tint === 'rose' ? p.rose
+    : tint === 'brand' ? p.brand
+    : p.muted;
+  const amountColor = amountTone === 'in' ? p.mint : amountTone === 'bad' ? p.rose : p.text;
+  return (
+    <View
+      style={[
+        styles.movement,
+        !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.line },
+      ]}
+    >
+      <View style={[styles.movementDisc, { backgroundColor: wash }]}>
+        <MaterialCommunityIcons name={icon} size={21} color={ink} />
+      </View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={[t.body, { color: p.text, fontWeight: '600' }]} numberOfLines={1}>
+          {title}
+        </Text>
+        <Text style={[t.small, { color: p.muted }]} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      </View>
+      <Text style={[t.label, { color: amountColor, fontWeight: '700', fontVariant: ['tabular-nums'] }]}>
+        {amount}
+      </Text>
     </View>
   );
 }
@@ -175,6 +249,20 @@ export function Empty({ children }: { children: ReactNode }) {
 
 const styles = StyleSheet.create({
   card: { borderRadius: radius.card, padding: space.lg, gap: space.xs },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: space.md,
+    marginBottom: space.md,
+  },
+  movement: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 13 },
+  movementDisc: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.control,

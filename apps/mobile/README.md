@@ -39,9 +39,26 @@ is what people actually scan.
 
 ## Visual direction
 
-Light and soft by default. White cards on a pale blue ground, a brand band
+Light and soft by default. White cards on a pale blue ground, a brand field
 across the top, pastel washes behind icons, and generous radii — saturation is
 spent only where it carries meaning rather than spread across the screen.
+
+Four structural rules do most of the work, and getting them wrong is what made
+earlier passes feel flat however the palette was tuned:
+
+1. **Cards float.** Soft shadow on a tinted ground, never a hairline border —
+   an outlined box reads as a form field, everything at one depth.
+2. **The brand field has size.** A strip behind a heading is a header; a field
+   with room to breathe is something the hero card can sit *into*.
+3. **Every group is a card**, including the row of quick actions. Controls
+   loose on the page background look unfinished next to controls on a surface.
+4. **List rows have an icon disc**, a name over its date, and the figure held
+   right — so a list is two scannable columns rather than a line of prose per
+   row.
+
+The headline figure stays near-black unless it is genuinely negative. Colouring
+a large number makes every glance feel like an alarm; the state belongs on the
+pill beside it, which says the thing in words anyway.
 
 The headline figure keeps three states on one scale, as tints rather than
 alarms. This app regularly tells people they run out of money on the 14th, so

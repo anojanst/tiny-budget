@@ -74,9 +74,33 @@ export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 28 };
  */
 export const radius = { chip: 10, control: 14, card: 20, hero: 24 };
 
+/**
+ * Cards float rather than being outlined. A hairline border reads as a form
+ * field — utilitarian, flat, everything at one depth — whereas a soft shadow
+ * on a tinted ground is what makes a white card feel like an object you could
+ * pick up. This is most of the difference between a tool and a product.
+ */
+export const shadow = {
+  card: {
+    shadowColor: '#0A1B3D',
+    shadowOpacity: 0.07,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  hero: {
+    shadowColor: '#0A1B3D',
+    shadowOpacity: 0.13,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
+  },
+} as const;
+
 export const type = {
-  hero: { fontSize: 40, fontWeight: '700' as const, letterSpacing: -1.2 },
+  hero: { fontSize: 38, fontWeight: '700' as const, letterSpacing: -1.1 },
   figure: { fontSize: 22, fontWeight: '700' as const, letterSpacing: -0.4 },
+  section: { fontSize: 20, fontWeight: '700' as const, letterSpacing: -0.4 },
   title: { fontSize: 17, fontWeight: '600' as const, letterSpacing: -0.2 },
   body: { fontSize: 15, fontWeight: '400' as const },
   label: { fontSize: 13, fontWeight: '500' as const },

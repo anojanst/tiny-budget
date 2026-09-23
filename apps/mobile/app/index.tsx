@@ -18,20 +18,23 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBudgetContext } from '../src/budgetContext';
 import { BalanceCurve } from '../src/components/BalanceCurve';
-import { Card, Empty, QuickAction, SectionTitle } from '../src/components/ui';
-import { radius, space, type as t, usePalette } from '../src/theme';
+import { Card, Empty, MovementRow, QuickAction, SectionTitle } from '../src/components/ui';
+import { movementIcon } from '../src/components/movementIcon';
+import { radius, shadow, space, type as t, usePalette } from '../src/theme';
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const MAX_MONTHS = 60;
 
 export default function CalendarScreen() {
-  const { budget, today, loaded } = useBudgetContext();
+  const { budget, budgets, activeBudgetId, today, loaded } = useBudgetContext();
   const [monthOffset, setMonthOffset] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const p = usePalette();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const budgetName =
+    budgets.find((entry) => entry.id === activeBudgetId)?.name ?? 'Budget';
 
   const visibleMonth = useMemo(
     () => addMonths(startOfMonth(today), monthOffset),
@@ -81,6 +84,34 @@ export default function CalendarScreen() {
       (d.isPayday || d.bills.length > 0 || d.credits.length > 0) &&
       d.date.getTime() >= today.getTime(),
   );
+  /**
+   * One entry per movement rather than per day. A day that pays two wages and
+   * takes three bills is five things that happened, and a list reads better as
+   * five rows than as one dense cell.
+   */
+  const movements = events.flatMap((day) => {
+    const when = day.date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+    const inbound = [...day.paydays, ...day.credits].map((item) => ({
+      key: `${day.key}-${item.id}`,
+      name: item.name,
+      amount: item.amount,
+      direction: 'in' as const,
+      when,
+      balance: day.balance,
+      short: day.short,
+    }));
+    const outbound = day.bills.map((item) => ({
+      key: `${day.key}-${item.id}`,
+      name: item.name,
+      amount: item.amount,
+      direction: 'out' as const,
+      when,
+      balance: day.balance,
+      short: day.short,
+    }));
+    return [...inbound, ...outbound];
+  });
+
   const low = monthDays.reduce<CalendarDay | null>(
     (min, d) => (min === null || d.balance < min.balance ? d : min),
     null,
@@ -127,39 +158,48 @@ export default function CalendarScreen() {
           end={{ x: 1, y: 1 }}
           style={[styles.band, { paddingTop: insets.top + space.md }]}
         >
+          <Text style={[t.small, { color: p.onBrandMuted, marginBottom: space.md }]}>
+            {budgetName}
+          </Text>
           <View style={styles.bandRow}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Previous month"
               disabled={monthOffset === 0}
               onPress={() => setMonthOffset((m) => Math.max(m - 1, 0))}
-              style={styles.arrow}
+              style={[styles.navDisc, { backgroundColor: 'rgba(255,255,255,0.16)' }]}
             >
-              <Text style={{ color: monthOffset === 0 ? p.onBrandMuted : p.onBrand, fontSize: 22 }}>
+              <Text style={{ color: monthOffset === 0 ? p.onBrandMuted : p.onBrand, fontSize: 20 }}>
                 ‹
               </Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={() => setMonthOffset(0)}>
-              <Text style={[t.title, { color: p.onBrand }]}>{formatMonthYear(visibleMonth)}</Text>
+              <Text style={[t.section, { color: p.onBrand }]}>{formatMonthYear(visibleMonth)}</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Next month"
               disabled={monthOffset === MAX_MONTHS}
               onPress={() => setMonthOffset((m) => Math.min(m + 1, MAX_MONTHS))}
-              style={styles.arrow}
+              style={[styles.navDisc, { backgroundColor: 'rgba(255,255,255,0.16)' }]}
             >
-              <Text style={{ color: p.onBrand, fontSize: 22 }}>›</Text>
+              <Text style={{ color: p.onBrand, fontSize: 20 }}>›</Text>
             </Pressable>
           </View>
         </LinearGradient>
 
-        <View style={[styles.heroCard, { backgroundColor: p.surface, borderColor: p.line }]}>
+        <View style={[styles.heroCard, shadow.hero, { backgroundColor: p.surface }]}>
           <Text style={[t.small, { color: p.muted }]}>
             {hasAnything ? 'Lowest this month' : 'Nothing projected yet'}
           </Text>
           <Text
-            style={[t.hero, { color: hasAnything ? toneColor : p.muted, fontVariant: ['tabular-nums'] }]}
+            style={[
+              t.hero,
+              {
+                color: !hasAnything ? p.muted : low && low.balance < 0 ? p.rose : p.text,
+                fontVariant: ['tabular-nums'],
+              },
+            ]}
             numberOfLines={1}
             adjustsFontSizeToFit
           >
@@ -209,7 +249,7 @@ export default function CalendarScreen() {
         </View>
       </View>
 
-      <View style={styles.quickRow}>
+      <Card style={styles.quickCard}>
         <QuickAction icon="cash-plus" label="Income" tint="mint" onPress={() => router.push('/money')} />
         <QuickAction icon="cash-minus" label="Payment" tint="peach" onPress={() => router.push('/money')} />
         <QuickAction
@@ -224,7 +264,7 @@ export default function CalendarScreen() {
           tint="slate"
           onPress={() => router.push('/money')}
         />
-      </View>
+      </Card>
 
       {hasAnything && undated > 0 && (
         <Card style={{ backgroundColor: p.peachWash, borderColor: p.peach }}>
@@ -295,52 +335,26 @@ export default function CalendarScreen() {
       </Card>
 
       <View>
-        <SectionTitle title="What's coming" hint="Every movement, and what it leaves you holding." />
+        <SectionTitle
+          title="What's coming"
+          hint="Each movement, and what it leaves you holding."
+          action={{ label: 'All money', onPress: () => router.push('/money') }}
+        />
         <Card style={{ gap: 0, paddingVertical: space.xs }}>
-          {events.length === 0 ? (
+          {movements.length === 0 ? (
             <Empty>Nothing dated in {formatMonthYear(visibleMonth)}.</Empty>
           ) : (
-            events.map((entry, index) => (
-              <View
-                key={entry.key}
-                style={[
-                  styles.event,
-                  index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.line },
-                ]}
-              >
-                <View style={styles.eventDate}>
-                  <Text style={[t.small, { color: p.muted }]}>
-                    {entry.date.toLocaleDateString(undefined, { month: 'short' })}
-                  </Text>
-                  <Text style={[t.label, { color: p.text, fontWeight: '600' }]}>
-                    {entry.date.getDate()}
-                  </Text>
-                </View>
-                <View style={{ flex: 1, gap: 3 }}>
-                  {[...entry.paydays, ...entry.credits].map((item) => (
-                    <Text key={item.id} style={[t.body, { color: p.mint, fontWeight: '600' }]}>
-                      {item.name} +{formatCurrency(item.amount)}
-                    </Text>
-                  ))}
-                  {entry.bills.map((bill) => (
-                    <Text key={bill.id} style={[t.body, { color: p.muted }]}>
-                      {bill.name} −{formatCurrency(bill.amount)}
-                    </Text>
-                  ))}
-                </View>
-                <Text
-                  style={[
-                    t.label,
-                    {
-                      color: entry.short ? p.rose : p.text,
-                      fontWeight: '700',
-                      fontVariant: ['tabular-nums'],
-                    },
-                  ]}
-                >
-                  {formatCurrency(entry.balance)}
-                </Text>
-              </View>
+            movements.map((m, index) => (
+              <MovementRow
+                key={m.key}
+                first={index === 0}
+                icon={movementIcon(m.name, m.direction)}
+                tint={m.direction === 'in' ? 'mint' : m.short ? 'rose' : 'slate'}
+                title={m.name}
+                subtitle={`${m.when} · ${formatCurrency(m.balance)} left`}
+                amount={`${m.direction === 'in' ? '+' : '−'}${formatCurrency(m.amount)}`}
+                amountTone={m.direction === 'in' ? 'in' : m.short ? 'bad' : 'normal'}
+              />
             ))
           )}
         </Card>
@@ -352,21 +366,25 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   screen: { padding: space.lg, gap: space.lg, paddingBottom: space.xl * 2 },
   heroWrap: { marginTop: -space.lg, marginHorizontal: -space.lg },
-  band: { paddingTop: space.md, paddingBottom: space.xl + space.lg, paddingHorizontal: space.lg },
+  // A substantial field of colour, not a strip: the card has to have
+  // something to float on, or the overlap reads as a misaligned header.
+  // A substantial field of colour, not a strip: the card has to have
+  // something to float on, and blue has to breathe above it or the overlap
+  // reads as a misaligned header rather than a deliberate layer.
+  band: { paddingTop: space.md, paddingBottom: space.xl * 4, paddingHorizontal: space.lg },
   bandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  arrow: { paddingHorizontal: space.sm, paddingVertical: 2 },
+  navDisc: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   heroCard: {
-    marginTop: -(space.xl + space.sm),
+    marginTop: -(space.xl * 2),
     marginHorizontal: space.lg,
     borderRadius: radius.hero,
-    borderWidth: StyleSheet.hairlineWidth,
     padding: space.lg,
     gap: 2,
   },
   heroNote: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.sm },
   pill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
   heroFoot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: space.xs },
-  quickRow: { flexDirection: 'row', gap: space.sm },
+  quickCard: { flexDirection: 'row', gap: space.sm, paddingVertical: space.lg },
   weekRow: { flexDirection: 'row' },
   weekday: { flex: 1, textAlign: 'center', fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
