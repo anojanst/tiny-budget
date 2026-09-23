@@ -175,6 +175,30 @@ shred -u ~/Downloads/your-project-abc123.json
 The workflow skips distribution entirely when `FIREBASE_APP_ID` is unset, so
 releases keep working whether or not this is set up.
 
+### Check it before you need it
+
+Firebase's setup has four ways to be subtly wrong — a truncated key, a
+service account without the right role, App Distribution never opened in the
+console, an app id from the wrong project — and every one of them surfaces at
+*upload* time, fifteen minutes into a release, after the APK is built and
+signed. So check first:
+
+**Actions → Android APK → Run workflow**, tick *Check the Firebase setup and
+tester list*, run it.
+
+It builds nothing and emails nobody. It reads the tester list, confirms the
+key is complete, confirms the service account can reach App Distribution, and
+confirms the app id belongs to that project — then names whichever of those is
+wrong. About thirty seconds.
+
+### Rolling it out
+
+Distribution is all-or-nothing per release: everyone on the list gets the same
+build. So put only yourself in `testers.txt` for the first Firebase release,
+confirm the email arrives and the install works from your own phone, and add
+everyone else in a follow-up commit. They are emailed on the *next* release
+after being added, not retroactively.
+
 ### What a tester sees
 
 The first release they are added to sends an email inviting them to the app.

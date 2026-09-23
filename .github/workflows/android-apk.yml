@@ -7,12 +7,81 @@ on:
   push:
     tags: ['mobile-v*']
   workflow_dispatch:
+    inputs:
+      check_distribution:
+        description: 'Check the Firebase setup and tester list, then stop — builds nothing, emails nobody'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 jobs:
+  # A thirty-second answer to "is Firebase set up right", so that question is
+  # not answered fifteen minutes into a release by a step that fails after the
+  # APK is already built and signed. Uploads nothing and emails nobody.
+  check-distribution:
+    if: ${{ inputs.check_distribution }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tester list
+        run: |
+          set -euo pipefail
+          bash apps/mobile/scripts/testers.sh | tee "$RUNNER_TEMP/testers.txt"
+          COUNT=$(wc -l < "$RUNNER_TEMP/testers.txt")
+          echo "$COUNT address(es) on the list"
+          [ "$COUNT" -gt 0 ] || { echo "::error::apps/mobile/testers.txt lists nobody."; exit 1; }
+
+      - name: Check the Firebase credentials
+        env:
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          MISSING=
+          [ -n "${FIREBASE_APP_ID:-}" ] || MISSING="$MISSING FIREBASE_APP_ID"
+          [ -n "${FIREBASE_SERVICE_ACCOUNT:-}" ] || MISSING="$MISSING FIREBASE_SERVICE_ACCOUNT"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Not set:$MISSING. See apps/mobile/DISTRIBUTING.md."
+            exit 1
+          fi
+
+          KEY="$RUNNER_TEMP/firebase-key.json"
+          install -m 600 /dev/null "$KEY"
+          trap 'rm -f "$KEY"' EXIT
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$KEY"
+          if ! jq -e '.type == "service_account" and has("client_email") and has("private_key")' "$KEY" >/dev/null 2>&1; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT is not a complete service-account JSON key — it was probably truncated in transit. Set it straight from the file: gh secret set FIREBASE_SERVICE_ACCOUNT < path/to/key.json"
+            exit 1
+          fi
+          PROJECT=$(jq -r .project_id "$KEY")
+          echo "Key belongs to: $(jq -r .client_email "$KEY") (project $PROJECT)"
+          export GOOGLE_APPLICATION_CREDENTIALS="$KEY"
+          FB="npx --yes firebase-tools@15"
+
+          # Listing testers exercises the chain that matters — the key parses,
+          # the service account authenticates, and App Distribution is enabled
+          # on the project — without uploading anything or emailing anyone.
+          # It is a project-level command, so the app id is checked separately
+          # below: a good key for the wrong app id fails at upload time, which
+          # is precisely the fifteen-minutes-in failure this job exists to
+          # prevent.
+          if ! $FB appdistribution:testers:list --project "$PROJECT" >/dev/null; then
+            echo "::error::The key authenticates but App Distribution is not reachable. Open Release & Monitor -> App Distribution in the Firebase console once and accept the terms, and check the service account holds the Firebase App Distribution Admin role."
+            exit 1
+          fi
+
+          if ! $FB apps:list ANDROID --project "$PROJECT" 2>/dev/null | grep -qF "$FIREBASE_APP_ID"; then
+            echo "::error::FIREBASE_APP_ID is not an Android app in project $PROJECT. Copy it from Project settings — it looks like 1:123456789012:android:abc123."
+            exit 1
+          fi
+
+          echo "Firebase is set up: the key reaches App Distribution, and the app id belongs to this project."
+
   build:
+    if: ${{ !inputs.check_distribution }}
     runs-on: ubuntu-latest
     # Only the app id is exposed job-wide, so the distribution step's `if` can
     # read it — a step's own `env` is not available to its own condition. The
@@ -183,11 +252,10 @@ jobs:
             exit 1
           fi
 
-          # Comments and blank lines are for the humans who edit the list; the
-          # CLI wants addresses only.
+          # Read through the same script the tests read it through, so the
+          # list that was checked is the list that is used.
           LIST="$RUNNER_TEMP/testers.txt"
-          sed -e 's/#.*//' -e 's/[[:space:]]//g' apps/mobile/testers.txt \
-            | grep -v '^$' > "$LIST" || true
+          bash apps/mobile/scripts/testers.sh > "$LIST"
           COUNT=$(wc -l < "$LIST")
           if [ "$COUNT" -eq 0 ]; then
             echo "::error::apps/mobile/testers.txt lists nobody, so this release would reach no one. Add an address or unset FIREBASE_APP_ID."
