@@ -9,6 +9,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),
+      // The shared package is consumed as TypeScript source, not a build
+      // artifact: one less build step, and the web app's type errors point at
+      // the real lines in core rather than a .d.ts.
+      "@tiny-budget/core": path.resolve(import.meta.dirname, "./packages/core/src/index.ts"),
     },
   },
 })

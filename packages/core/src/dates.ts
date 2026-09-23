@@ -1,4 +1,4 @@
-import type { Frequency } from '@/types/budget';
+import type { Frequency } from './types';
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 

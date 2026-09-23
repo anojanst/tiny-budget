@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readBudget, readStore } from './useBudget';
-import { toDateInputValue } from '@/lib/dates';
+import { readBudget, readStore } from './store';
+import { toDateInputValue } from './dates';
 
 /**
  * The migration chain is the one place in this app where a mistake destroys

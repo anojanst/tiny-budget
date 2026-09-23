@@ -1,6 +1,6 @@
 import { Menu } from '@base-ui/react/menu';
 import { cn } from '@/lib/utils';
-import type { NamedBudget } from '@/types/budget';
+import type { NamedBudget } from '@tiny-budget/core';
 import { Check, ChevronsUpDown, Plus } from 'lucide-react';
 
 interface BudgetSwitcherProps {

@@ -1,3 +1,4 @@
+import { EXPENSE_CATEGORIES, formatCurrency, INCOME_CATEGORIES } from '@tiny-budget/core';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -5,8 +6,6 @@ import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/shell/PageHeader';
 import { MoneyEntrySection } from '@/components/MoneyEntrySection';
 import { StatCard } from '@/components/StatCard';
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/expenseCategories';
-import { formatCurrency } from '@/lib/format';
 import type { useBudget } from '@/hooks/useBudget';
 
 interface BudgetPageProps {

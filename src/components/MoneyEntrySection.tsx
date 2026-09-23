@@ -1,3 +1,4 @@
+import { formatCurrency, type Frequency, type MoneyEntry } from '@tiny-budget/core';
 import { useState } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,8 +9,6 @@ import { CategoryCombobox } from '@/components/ui/category-combobox';
 import { FrequencySelect } from '@/components/ui/frequency-select';
 import { WidgetHeading } from '@/components/WidgetHeading';
 
-import { formatCurrency } from '@/lib/format';
-import type { Frequency, MoneyEntry } from '@/types/budget';
 import { Plus } from 'lucide-react';
 
 interface MoneyEntrySectionProps {

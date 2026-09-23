@@ -17,7 +17,8 @@
     "jsx": "react-jsx",
 
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@tiny-budget/core": ["./packages/core/src/index.ts"]
     },
 
     /* Linting */
@@ -26,5 +27,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src", "packages/core/src"]
 }

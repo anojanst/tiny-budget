@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildCashflowDays } from './calendar';
 import { toDateInputValue } from './dates';
-import type { IncomeStream, MoneyEntry, OneOff } from '@/types/budget';
+import type { IncomeStream, MoneyEntry, OneOff } from './types';
 
 const from = new Date(2026, 0, 1); // Thu 1 Jan 2026
 const day = (n: number) => new Date(2026, 0, 1 + n);

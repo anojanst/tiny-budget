@@ -1,6 +1,6 @@
-import type { IncomeStream, MoneyEntry, OneOff } from '@/types/budget';
-import { isEntryActive, toWeeklyAmount } from '@/lib/budgetMath';
-import { advanceByFrequency, parseLocalDate, startOfDay, toDateInputValue } from '@/lib/dates';
+import type { IncomeStream, MoneyEntry, OneOff } from './types';
+import { isEntryActive, toWeeklyAmount } from './budgetMath';
+import { advanceByFrequency, parseLocalDate, startOfDay, toDateInputValue } from './dates';
 
 /**
  * A day-by-day cash projection.

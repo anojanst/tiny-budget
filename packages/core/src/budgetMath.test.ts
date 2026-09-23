@@ -6,7 +6,7 @@ import {
   toWeeklyAmount,
   WEEKS_PER_MONTH,
 } from './budgetMath';
-import type { Frequency, MoneyEntry } from '@/types/budget';
+import type { Frequency, MoneyEntry } from './types';
 import { toDateInputValue } from './dates';
 
 const entry = (over: Partial<MoneyEntry> = {}): MoneyEntry => ({

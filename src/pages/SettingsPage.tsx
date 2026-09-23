@@ -1,3 +1,4 @@
+import { WEEKS_PER_MONTH, type NamedBudget } from '@tiny-budget/core';
 import { useRef, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,8 +8,6 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PageHeader } from '@/components/shell/PageHeader';
 import { WidgetHeading } from '@/components/WidgetHeading';
 import { Input } from '@/components/ui/input';
-import type { NamedBudget } from '@/types/budget';
-import { WEEKS_PER_MONTH } from '@/lib/budgetMath';
 import { THEMES } from '@/lib/themes';
 import { cn } from '@/lib/utils';
 import { Check, Download, Plus, Trash2, Upload } from 'lucide-react';

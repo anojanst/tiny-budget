@@ -1,3 +1,4 @@
+import { EXPENSE_CATEGORIES, formatCurrency, INCOME_CATEGORIES, toDateInputValue, toWeeklyAmount, type Frequency, type IncomeStream, type MoneyEntry } from '@tiny-budget/core';
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,12 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { CategoryCombobox } from '@/components/ui/category-combobox';
 import { FrequencySelect } from '@/components/ui/frequency-select';
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/expenseCategories';
-import { formatCurrency } from '@/lib/format';
-import { toWeeklyAmount } from '@/lib/budgetMath';
-import { toDateInputValue } from '@/lib/dates';
 import { cn } from '@/lib/utils';
-import type { Frequency, IncomeStream, MoneyEntry } from '@/types/budget';
 import { ArrowRight, PiggyBank, Plus, X } from 'lucide-react';
 
 interface OnboardingWizardProps {

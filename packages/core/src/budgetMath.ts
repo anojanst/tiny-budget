@@ -1,5 +1,5 @@
-import type { Frequency, MoneyEntry } from '@/types/budget';
-import { advanceByFrequency, parseLocalDate } from '@/lib/dates';
+import type { Frequency, MoneyEntry } from './types';
+import { advanceByFrequency, parseLocalDate } from './dates';
 
 // Average number of weeks in a month (52 weeks / 12 months).
 export const WEEKS_PER_MONTH = 52 / 12;
