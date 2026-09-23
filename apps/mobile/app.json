@@ -7,12 +7,25 @@
     "scheme": "tinybudget",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.tinybudget.app" },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tinybudget.app"
+    },
     "android": {
       "package": "com.tinybudget.app",
-      "edgeToEdgeEnabled": true
+      "versionCode": 1,
+      "edgeToEdgeEnabled": true,
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
-    "web": { "bundler": "metro", "output": "single" },
-    "plugins": ["expo-router"]
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router"
+    ]
   }
 }

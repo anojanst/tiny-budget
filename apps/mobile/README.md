@@ -10,6 +10,9 @@ npm run mobile       # Expo dev server; press i / a, or scan with Expo Go
 `npx expo start --web` also runs it through react-native-web, which is handy
 for checking layout quickly but is not what ships.
 
+Releases are built and published free by GitHub Actions — see
+[DISTRIBUTING.md](DISTRIBUTING.md).
+
 ## What is shared, and what is not
 
 Everything about money comes from `@tiny-budget/core` and is byte-identical to
