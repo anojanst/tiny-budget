@@ -40,6 +40,21 @@ Recurring entries collapse to one line each (name, next date, weekly cost) and
 open on tap. Twenty expenses with five fields each is a wall; the summary line
 is what people actually scan.
 
+Money in and money out get a tab each. They shared one page at first, which
+meant scrolling past your wages to reach your rent and reading two opposite
+kinds of figure in one column. Split, each side carries its own totals at the
+top — and the one-off form loses its direction toggle, because the page
+already says which way the money goes. A toggle left unpressed filed a
+purchase as a windfall, which the calendar then added to your balance.
+
+The tab bar fills its icon in when selected rather than only recolouring it,
+by appending `-outline` for the unselected state. Not every glyph has an
+outline twin: `cash-plus` has none, and asking for `cash-plus-outline` drew a
+literal "?" in the bar. `TabIcon` now checks before appending, and
+`icons.test.ts` checks every icon name in the app against the font binary's
+own character map — the JSON glyph map that ships beside it lists names the
+font cannot draw, so it cannot be the thing you verify against.
+
 ## Visual direction
 
 Light and soft by default. White cards on a pale blue ground, a brand field

@@ -247,20 +247,27 @@ export default function CalendarScreen() {
         </View>
       </View>
 
+      {/* Three rather than four now that income and payments have tabs of
+          their own: a shortcut to the page you are one tap from anyway is
+          just a second row of navigation. */}
       <Card style={styles.quickCard}>
-        <QuickAction icon="cash-plus" label="Income" tint="mint" onPress={() => router.push('/money')} />
-        <QuickAction icon="cash-minus" label="Payment" tint="peach" onPress={() => router.push('/money')} />
+        <QuickAction
+          icon="cash-plus"
+          label="Income"
+          tint="mint"
+          onPress={() => router.push('/income')}
+        />
+        <QuickAction
+          icon="cash-minus"
+          label="Payment"
+          tint="peach"
+          onPress={() => router.push('/payments')}
+        />
         <QuickAction
           icon="calendar-plus"
           label="One-off"
           tint="brand"
-          onPress={() => router.push('/money')}
-        />
-        <QuickAction
-          icon="format-list-bulleted"
-          label="All money"
-          tint="slate"
-          onPress={() => router.push('/money')}
+          onPress={() => router.push('/payments')}
         />
       </Card>
 
@@ -336,7 +343,7 @@ export default function CalendarScreen() {
         <SectionTitle
           title="What's coming"
           hint="Each movement, and what it leaves you holding."
-          action={{ label: 'All money', onPress: () => router.push('/money') }}
+          action={{ label: 'Payments', onPress: () => router.push('/payments') }}
         />
         <Card style={{ gap: 0, paddingVertical: space.xs }}>
           {movements.length === 0 ? (
