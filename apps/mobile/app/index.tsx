@@ -191,7 +191,12 @@ export default function CalendarScreen() {
           )}
 
           <View style={{ marginTop: space.md }}>
-            <BalanceCurve days={days} palette={p} width={heroWidth} tone={tone} />
+            {/* The projection has to run from today, because a balance is
+                only meaningful as the running total of everything before it —
+                but the chart shows the month you are looking at. Handing it
+                the whole projection made December draw a hundred bars, most
+                of them from months already scrolled past. */}
+            <BalanceCurve days={monthDays} palette={p} width={heroWidth} tone={tone} />
           </View>
           <View style={styles.heroFoot}>
             <Text style={[t.small, { color: p.muted }]}>
