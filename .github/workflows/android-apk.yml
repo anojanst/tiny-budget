@@ -14,6 +14,13 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Only the app id is exposed job-wide, so the distribution step's `if` can
+    # read it — a step's own `env` is not available to its own condition. The
+    # service-account key deliberately stays on that one step: anything at job
+    # level is readable by every step, `npm ci` and its dependency tree
+    # included.
+    env:
+      FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -145,6 +152,57 @@ jobs:
           name: tiny-budget-apk
           path: tiny-budget.apk
           if-no-files-found: error
+
+      # The distribution list. A GitHub Release is a link anyone can find;
+      # this emails an install link to each address in testers.txt, and emails
+      # them again on every later release — which is the part a link cannot
+      # do. Skipped entirely when FIREBASE_APP_ID is unset, so the release
+      # still builds and publishes for anyone who has not set Firebase up.
+      - name: Send to the distribution list
+        if: ${{ startsWith(github.ref, 'refs/tags/') && env.FIREBASE_APP_ID != '' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${FIREBASE_SERVICE_ACCOUNT:-}" ]; then
+            echo "::error::FIREBASE_APP_ID is set but FIREBASE_SERVICE_ACCOUNT is not. See apps/mobile/DISTRIBUTING.md."
+            exit 1
+          fi
+
+          KEY="$RUNNER_TEMP/firebase-key.json"
+          # Created empty and private first: the key must never exist, even for
+          # an instant, at a mode another process on the runner could read.
+          install -m 600 /dev/null "$KEY"
+          trap 'rm -f "$KEY"' EXIT
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$KEY"
+          # The same lesson as the keystore: a long secret that travelled
+          # through a clipboard arrives truncated, and the CLI's error for that
+          # is about authentication rather than about the key being cut in half.
+          if ! jq -e '.type == "service_account" and has("client_email") and has("private_key")' "$KEY" >/dev/null 2>&1; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT is not a complete service-account JSON key — it was probably truncated in transit. Set it straight from the file: gh secret set FIREBASE_SERVICE_ACCOUNT < path/to/key.json"
+            exit 1
+          fi
+
+          # Comments and blank lines are for the humans who edit the list; the
+          # CLI wants addresses only.
+          LIST="$RUNNER_TEMP/testers.txt"
+          sed -e 's/#.*//' -e 's/[[:space:]]//g' apps/mobile/testers.txt \
+            | grep -v '^$' > "$LIST" || true
+          COUNT=$(wc -l < "$LIST")
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::apps/mobile/testers.txt lists nobody, so this release would reach no one. Add an address or unset FIREBASE_APP_ID."
+            exit 1
+          fi
+          echo "Distributing to $COUNT tester(s)"
+
+          NOTES="$RUNNER_TEMP/notes.txt"
+          { echo "$GITHUB_REF_NAME"; echo; git log -1 --pretty=%s; } > "$NOTES"
+
+          GOOGLE_APPLICATION_CREDENTIALS="$KEY" \
+            npx --yes firebase-tools@15 appdistribution:distribute tiny-budget.apk \
+              --app "$FIREBASE_APP_ID" \
+              --testers-file "$LIST" \
+              --release-notes-file "$NOTES"
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/')

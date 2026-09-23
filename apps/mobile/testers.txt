@@ -1,0 +1,13 @@
+# Who gets the app.
+#
+# One email address per line. Everyone here is emailed an install link when a
+# `mobile-v*` tag builds, and emailed again on every release after that.
+#
+# Blank lines and anything after a `#` are ignored, so notes are fine — the
+# workflow strips them before handing the list to Firebase.
+#
+# Removing someone here stops future emails, but does not uninstall the app
+# they already have. To cut off access entirely, remove them in the Firebase
+# console as well.
+
+ethanojan1@gmail.com
