@@ -2,7 +2,7 @@
   "expo": {
     "name": "Money Ahead",
     "slug": "money-ahead",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "scheme": "moneyahead",
     "userInterfaceStyle": "automatic",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.moneyahead.app",
-      "versionCode": 3,
+      "versionCode": 4,
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
@@ -37,7 +37,7 @@
         {
           "image": "./assets/splash.png",
           "backgroundColor": "#FFCB45",
-          "imageWidth": 260,
+          "imageWidth": 240,
           "resizeMode": "contain"
         }
       ]

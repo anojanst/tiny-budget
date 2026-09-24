@@ -9,6 +9,7 @@ edit. Run it with:
 
     python3 apps/mobile/scripts/make-brand-assets.py
 """
+import math
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -64,9 +65,43 @@ icon(OUT / "favicon.png", 96, YELLOW, "MA", 0.58)
 # foreground has to survive being masked to a circle.
 icon(OUT / "adaptive-icon.png", 1024, None, "MA", ANDROID_SAFE * 0.78)
 
-# The splash is the name in full — there is room for it, and a launch screen
-# is the one place the whole wordmark earns its space.
-splash = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
-draw_centred(splash, "Money Ahead", fitted("Money Ahead", 820, 200), BLACK)
-splash.save(OUT / "splash.png")
-print(f"  {'splash.png':24} 1024x1024  transparent")
+# The splash continues the icon: the same mark, then the name under it.
+#
+# Android 12 and later hand the drawable to the system splash, which masks it
+# to a circle of roughly two thirds the canvas — anything outside is simply
+# not drawn. The first version of this was the wordmark alone at full width
+# and would have been cut through the middle of it. So the lockup is built at
+# its natural size and then scaled to fit *inside* that circle, which is what
+# the diagonal check below is doing: a box fits a circle when its diagonal
+# does, not when its width does.
+def splash(path: Path, size: int = 1024):
+    mark = ImageFont.truetype(FONT, 300)
+    name = ImageFont.truetype(FONT, 76)
+    gap = 54
+
+    probe = ImageDraw.Draw(Image.new("RGBA", (10, 10)))
+    lines = []
+    for text, f in (("MA", mark), ("Money Ahead", name)):
+        l, t, r, b = probe.textbbox((0, 0), text, font=f)
+        lines.append((text, f, l, t, r - l, b - t))
+    w = max(line[4] for line in lines)
+    h = sum(line[5] for line in lines) + gap
+
+    lockup = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lockup)
+    y = 0
+    for text, f, l, t, tw, th in lines:
+        d.text(((w - tw) / 2 - l, y - t), text, font=f, fill=BLACK)
+        y += th + gap
+
+    safe = size * ANDROID_SAFE
+    scale = min(1.0, safe / math.hypot(w, h))
+    lockup = lockup.resize((round(w * scale), round(h * scale)), Image.LANCZOS)
+
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    img.alpha_composite(lockup, ((size - lockup.width) // 2, (size - lockup.height) // 2))
+    img.save(path)
+    print(f"  {path.name:24} {size}x{size}  lockup {lockup.size}, inside the mask")
+
+
+splash(OUT / "splash.png")
