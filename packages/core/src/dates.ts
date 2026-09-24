@@ -108,3 +108,12 @@ export function weeksBetween(from: Date, to: Date): number {
 export function formatShortDate(date: Date): string {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
+
+/**
+ * A date with no year, for use somewhere the year is already established —
+ * inside a card that sits under a "October 2026" heading, say. Printing it
+ * again there puts the year on screen three times and reads as noise.
+ */
+export function formatDayMonth(date: Date): string {
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}

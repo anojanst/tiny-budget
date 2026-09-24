@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { addWeeks, parseLocalDate, startOfToday, toDateInputValue, weeksBetween } from './dates';
+import {
+  addWeeks,
+  formatDayMonth,
+  parseLocalDate,
+  startOfToday,
+  toDateInputValue,
+  weeksBetween,
+} from './dates';
 
 describe('weeksBetween', () => {
   it('counts whole weeks between two local midnights', () => {
@@ -47,5 +54,20 @@ describe('parseLocalDate', () => {
   it('round-trips through toDateInputValue', () => {
     const value = '2027-02-28';
     expect(toDateInputValue(parseLocalDate(value)!)).toBe(value);
+  });
+});
+
+describe('formatDayMonth', () => {
+  it('leaves the year out', () => {
+    const text = formatDayMonth(new Date(2026, 9, 3));
+    expect(text).not.toContain('2026');
+    expect(text).toContain('3');
+  });
+
+  it('still says which day it is', () => {
+    // Weak on purpose: the exact wording is the platform's, not ours.
+    expect(formatDayMonth(new Date(2026, 9, 3))).not.toBe(
+      formatDayMonth(new Date(2026, 9, 4)),
+    );
   });
 });

@@ -8,15 +8,15 @@ import {
   endOfMonth,
   formatCurrency,
   formatMonthYear,
+  formatDayMonth,
   formatShortDate,
   isSameDay,
   startOfMonth,
   toDateInputValue,
-  weeksBetween,
-  type CalendarDay,
 } from '@money-ahead/core';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBudgetContext } from '../src/budgetContext';
+import { summariseMonth } from '../src/heroSummary';
 import { MonthFlow } from '../src/components/MonthFlow';
 import { Card, Empty, MovementRow, QuickAction, SectionTitle } from '../src/components/ui';
 import { movementIcon } from '../src/components/movementIcon';
@@ -111,10 +111,6 @@ export default function CalendarScreen() {
     return [...inbound, ...outbound];
   });
 
-  const low = monthDays.reduce<CalendarDay | null>(
-    (min, d) => (min === null || d.balance < min.balance ? d : min),
-    null,
-  );
   const hasAnything =
     budget.incomes.length > 0 || budget.expenses.length > 0 || budget.oneOffs.length > 0;
   const undated = [...budget.incomes, ...budget.expenses].filter((e) => !e.nextDue).length;
@@ -126,11 +122,10 @@ export default function CalendarScreen() {
     (sum, e) => sum + e.amount / (e.frequency === 'weekly' ? 1 : 4.333),
     0,
   );
-  const tone: 'bad' | 'warn' | 'good' =
-    !low || !hasAnything ? 'good' : low.balance < 0 ? 'bad' : low.balance < weeklyOut ? 'warn' : 'good';
-  const toneColor = tone === 'bad' ? p.rose : tone === 'warn' ? p.peach : p.mint;
-
-  const daysAway = low ? Math.max(Math.round(weeksBetween(today, low.date) * 7), 0) : 0;
+  const hero = hasAnything ? summariseMonth(monthDays, weeklyOut, today) : null;
+  // The supporting line is muted when there is nothing to flag: a healthy
+  // month should not be coloured in, or colour stops meaning anything.
+  const noteColor = hero?.tone === 'bad' ? p.rose : hero?.tone === 'warn' ? p.peach : p.muted;
 
   if (!loaded) {
     return (
@@ -188,39 +183,24 @@ export default function CalendarScreen() {
 
         <View style={[styles.heroCard, shadow.hero, { backgroundColor: p.surface }]}>
           <Text style={[t.small, { color: p.muted }]}>
-            {hasAnything ? 'Lowest this month' : 'Nothing projected yet'}
+            {hero ? hero.label : 'Nothing projected yet'}
           </Text>
           <Text
             style={[
               t.hero,
               {
-                color: !hasAnything ? p.muted : low && low.balance < 0 ? p.rose : p.text,
+                color: !hero ? p.muted : hero.short ? p.rose : p.text,
                 fontVariant: ['tabular-nums'],
               },
             ]}
             numberOfLines={1}
             adjustsFontSizeToFit
           >
-            {low && hasAnything ? formatCurrency(low.balance) : '—'}
+            {hero ? formatCurrency(hero.amount) : '—'}
           </Text>
-          {low && hasAnything ? (
+          {hero ? (
             <View style={styles.heroNote}>
-              <Text style={[t.small, { color: p.muted }]}>
-                {formatShortDate(low.date)}
-                {daysAway === 0 ? ' · today' : daysAway === 1 ? ' · tomorrow' : ` · in ${daysAway} days`}
-              </Text>
-              {tone !== 'good' && (
-                <View
-                  style={[
-                    styles.pill,
-                    { backgroundColor: tone === 'bad' ? p.roseWash : p.peachWash },
-                  ]}
-                >
-                  <Text style={[t.small, { color: toneColor, fontWeight: '600' }]}>
-                    {tone === 'bad' ? 'You run out' : "Under a week's bills"}
-                  </Text>
-                </View>
-              )}
+              <Text style={[t.small, { color: noteColor, lineHeight: 18 }]}>{hero.note}</Text>
             </View>
           ) : (
             <Text style={[t.small, { color: p.muted }]}>
@@ -237,11 +217,7 @@ export default function CalendarScreen() {
           </View>
           <View style={[styles.heroFoot, { borderTopColor: p.line }]}>
             <Text style={[t.small, { color: p.muted }]}>
-              {formatCurrency(budget.currentBalance)} today
-            </Text>
-            <Text style={[t.small, { color: p.muted }]}>
-              {formatCurrency(monthDays[monthDays.length - 1]?.balance ?? budget.currentBalance)} by
-              month end
+              Starting from {formatCurrency(budget.currentBalance)} today
             </Text>
           </View>
         </View>
@@ -334,7 +310,7 @@ export default function CalendarScreen() {
         </View>
         {selected && byKey.get(selected) ? (
           <Text style={[t.label, styles.selectedLine, { color: p.text, borderTopColor: p.line }]}>
-            {formatShortDate(byKey.get(selected)!.date)} — {formatCurrency(byKey.get(selected)!.balance)} left
+            {formatDayMonth(byKey.get(selected)!.date)} — {formatCurrency(byKey.get(selected)!.balance)} left
           </Text>
         ) : null}
       </Card>

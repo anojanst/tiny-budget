@@ -83,14 +83,34 @@ alarms. This app regularly tells people they run out of money on the 14th, so
 that state is common rather than exceptional and should read clearly without
 shouting:
 
-| Lowest point | Reads as | Says |
-| --- | --- | --- |
-| Comfortably clear | mint | just the date |
-| Under a week of bills | peach | "Under a week's bills" |
-| Below zero | rose | "You run out" |
+The headline is where the month **leaves** you — "By Nov 30 you'll have
+$585" — because that is the question a budget cannot answer and this app
+exists to. It used to lead with the lowest point instead, which announced a
+floor you were falling toward even in a month with $1,200 of room.
 
-The middle state is the one that earns its place: an all-or-nothing red can
-only speak once it is too late to move anything.
+Leading with the ending has one failure mode, and the card is built around
+avoiding it: a month can end comfortably having gone under on the 3rd, and a
+card reporting only the ending would read as fine right up until a payment
+bounced. So the line beneath the figure is **not** a warning that appears when
+things go wrong. It is always present, and it always describes the worst point
+on the way:
+
+| On the way | Reads as | Says |
+| --- | --- | --- |
+| Never lower than the ending | muted | "Never lower than this on the way" |
+| Comfortably clear | muted | "Thinnest on Oct 3 — $6,105 left" |
+| Under a week of bills | peach | the same line, coloured |
+| Dips under, then recovers | rose | "Dips $155 under on Nov 3 before it recovers" |
+| Ends under | rose | "Goes under on Oct 16, in 22 days" |
+
+The middle state earns its place: an all-or-nothing red can only speak once it
+is too late to move anything. The last two name the day it **first** crosses,
+not the day it is lowest — once you are under you stay under until something
+arrives, so the lowest point is usually just the end of the month, while the
+first crossing is the day you can still act before.
+
+That invariant is `summariseMonth` in `src/heroSummary.ts`, kept out of the
+component so it can be tested. Removing the dip branch fails two tests.
 
 Colour has one job each. Blue is the brand and every selected control; mint
 means money arriving; peach and rose mean the balance is thin or gone. A
