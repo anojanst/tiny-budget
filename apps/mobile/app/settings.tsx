@@ -4,6 +4,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useBudgetContext } from '../src/budgetContext';
+import { Toast } from '../src/components/Toast';
+import { useToast } from '../src/components/useToast';
 import { Button, Card, Field, SectionTitle } from '../src/components/ui';
 import { space, usePalette } from '../src/theme';
 
@@ -18,6 +20,8 @@ export default function SettingsScreen() {
   const p = usePalette();
   const [newName, setNewName] = useState('');
   const [busy, setBusy] = useState(false);
+  const toast = useToast();
+  const onlyBudget = b.budgets.length <= 1;
 
   /**
    * Writes a real `.json` file and shares that, rather than sharing the JSON
@@ -95,17 +99,48 @@ export default function SettingsScreen() {
   };
 
   const confirmDelete = (id: string, name: string) => {
+    // Said on the tap rather than by graying the button out: a disabled
+    // control explains nothing, and the reason is the useful part.
+    if (onlyBudget) {
+      toast.show("This is your only budget — clear it instead of deleting it.");
+      return;
+    }
     Alert.alert(
       `Delete "${name}"?`,
       "Its income, payments and one-offs go for good. This can't be undone — export it first if you might want it back.",
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => b.deleteBudget(id) },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            if (!b.deleteBudget(id)) toast.show('That is your only budget, so it stayed.');
+          },
+        },
+      ],
+    );
+  };
+
+  const confirmReset = () => {
+    Alert.alert(
+      'Start this budget over?',
+      "Its income, payments and one-offs are cleared. The budget and its name stay, and your other budgets are untouched.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear it',
+          style: 'destructive',
+          onPress: () => {
+            b.resetBudget();
+            toast.show('Cleared. Add what comes in to start again.');
+          },
+        },
       ],
     );
   };
 
   return (
+    <View style={{ flex: 1, backgroundColor: p.page }}>
     <ScrollView
       style={{ backgroundColor: p.page }}
       contentContainerStyle={styles.screen}
@@ -137,7 +172,7 @@ export default function SettingsScreen() {
                   <View
                     style={[
                       styles.radio,
-                      { borderColor: active ? p.brand : p.line },
+                      { borderColor: active ? p.brandInk : p.line },
                       active && { backgroundColor: p.brand },
                     ]}
                   />
@@ -171,6 +206,7 @@ export default function SettingsScreen() {
               setNewName('');
             }}
           />
+          <Button label="Start this budget over" variant="ghost" onPress={confirmReset} />
         </Card>
       </View>
 
@@ -214,6 +250,8 @@ export default function SettingsScreen() {
         </Card>
       </View>
     </ScrollView>
+      <Toast message={toast.message} />
+    </View>
   );
 }
 

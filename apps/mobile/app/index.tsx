@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBudgetContext } from '../src/budgetContext';
 import { summariseMonth } from '../src/heroSummary';
 import { MonthFlow } from '../src/components/MonthFlow';
+import { Onboarding } from '../src/components/Onboarding';
 import { Card, Empty, MovementRow, QuickAction, SectionTitle } from '../src/components/ui';
 import { movementIcon } from '../src/components/movementIcon';
 import { radius, shadow, space, type as t, usePalette } from '../src/theme';
@@ -123,6 +124,20 @@ export default function CalendarScreen() {
     0,
   );
   const hero = hasAnything ? summariseMonth(monthDays, weeklyOut, today) : null;
+
+  /**
+   * An empty budget has nothing to draw, so it gets the three questions
+   * instead — the same condition for a fresh install, a budget just created
+   * and one just cleared. Purely derived, because `Onboarding` holds its
+   * answers until the end: nothing it collects makes the budget non-empty
+   * mid-flow, so there is no state to latch and nothing to get stuck open.
+   *
+   * `loaded` matters. AsyncStorage is read asynchronously, so for the first
+   * frames every budget looks empty, and without this the flow would flash
+   * over real data on every launch.
+   */
+  const [leftGuide, setLeftGuide] = useState<string | null>(null);
+  const guiding = loaded && !hasAnything && leftGuide !== activeBudgetId;
   // The supporting line is muted when there is nothing to flag: a healthy
   // month should not be coloured in, or colour stops meaning anything.
   const noteColor = hero?.tone === 'bad' ? p.rose : hero?.tone === 'warn' ? p.peach : p.muted;
@@ -160,7 +175,7 @@ export default function CalendarScreen() {
               accessibilityLabel="Previous month"
               disabled={monthOffset === 0}
               onPress={() => setMonthOffset((m) => Math.max(m - 1, 0))}
-              style={[styles.navDisc, { backgroundColor: 'rgba(255,255,255,0.16)' }]}
+              style={[styles.navDisc, { backgroundColor: 'rgba(0,0,0,0.09)' }]}
             >
               <Text style={{ color: monthOffset === 0 ? p.onBrandMuted : p.onBrand, fontSize: 20 }}>
                 ‹
@@ -174,7 +189,7 @@ export default function CalendarScreen() {
               accessibilityLabel="Next month"
               disabled={monthOffset === MAX_MONTHS}
               onPress={() => setMonthOffset((m) => Math.min(m + 1, MAX_MONTHS))}
-              style={[styles.navDisc, { backgroundColor: 'rgba(255,255,255,0.16)' }]}
+              style={[styles.navDisc, { backgroundColor: 'rgba(0,0,0,0.09)' }]}
             >
               <Text style={{ color: p.onBrand, fontSize: 20 }}>›</Text>
             </Pressable>
@@ -223,9 +238,15 @@ export default function CalendarScreen() {
         </View>
       </View>
 
+      {guiding ? (
+        <Onboarding onLeave={() => setLeftGuide(activeBudgetId)} />
+      ) : null}
+
       {/* Three rather than four now that income and payments have tabs of
           their own: a shortcut to the page you are one tap from anyway is
-          just a second row of navigation. */}
+          just a second row of navigation. Hidden while the guided flow is
+          up, which is already asking for the same things. */}
+      {guiding ? null : (
       <Card style={styles.quickCard}>
         <QuickAction
           icon="cash-plus"
@@ -246,6 +267,7 @@ export default function CalendarScreen() {
           onPress={() => router.push('/payments')}
         />
       </Card>
+      )}
 
       {hasAnything && undated > 0 && (
         <Card style={{ backgroundColor: p.peachWash, borderColor: p.peach }}>
@@ -286,7 +308,7 @@ export default function CalendarScreen() {
                 style={[
                   styles.cell,
                   entry?.short && { backgroundColor: p.roseWash },
-                  isSelected && { backgroundColor: p.brandWash, borderColor: p.mint },
+                  isSelected && { backgroundColor: p.brandWash, borderColor: p.brandInk },
                   isToday && { borderColor: p.text },
                 ]}
               >

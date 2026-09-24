@@ -378,3 +378,26 @@ export function buildExport(name: string, budget: Budget): string {
     2,
   );
 }
+
+/**
+ * Removes a budget, or refuses to.
+ *
+ * Returns `null` when the budget asked for is the only one there is. It used
+ * to be swapped for a fresh empty budget instead, which is indistinguishable
+ * afterwards from having cleared it — so "delete this" and "start this over"
+ * did the same thing and neither told you which had happened. Clearing is its
+ * own action now, and this says no.
+ *
+ * Refusing matters more than it looks: `readStore` repairs an empty list by
+ * inventing a budget, so a delete that emptied the list would come back as a
+ * nameless new one rather than as an error anybody could see.
+ */
+export function removeBudget(store: StoredState, id: string): StoredState | null {
+  if (store.budgets.length <= 1) return null;
+  const budgets = store.budgets.filter((entry) => entry.id !== id);
+  if (budgets.length === store.budgets.length) return null;
+  const activeId = budgets.some((entry) => entry.id === store.activeId)
+    ? store.activeId
+    : budgets[0].id;
+  return { ...store, activeId, budgets };
+}

@@ -70,7 +70,7 @@ function AppTabs() {
           paddingTop: space.sm,
           paddingBottom: bottomPad,
         },
-        tabBarActiveTintColor: p.brand,
+        tabBarActiveTintColor: p.text,
         tabBarLabelStyle: { fontSize: 11, lineHeight: 15, fontWeight: '600' },
         tabBarInactiveTintColor: p.muted,
       }}

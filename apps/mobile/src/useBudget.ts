@@ -10,6 +10,7 @@ import {
   makeEntry,
   parseImport,
   readStore,
+  removeBudget,
   startOfToday,
   STORAGE_KEY,
   sumWeekly,
@@ -159,22 +160,29 @@ export function useBudget() {
     [setStored],
   );
 
-  /** Deleting the last budget leaves an empty one rather than no app at all. */
+  /**
+   * Deleting the last budget is refused rather than silently obeyed.
+   *
+   * It used to swap in a fresh empty one, which is the same keystrokes as a
+   * delete and looks identical afterwards — so someone who meant "clear this
+   * out" and someone who meant "get rid of this" both got the same result,
+   * and neither was told which had happened. Clearing is now its own action.
+   *
+   * Returns false when it declined, so the screen can say why.
+   */
   const deleteBudget = useCallback(
-    (id: string) =>
-      setStored((prev) => {
-        const current = readStore(prev);
-        const remaining = current.budgets.filter((b) => b.id !== id);
-        if (remaining.length === 0) {
-          const entry = makeEntry(DEFAULT_BUDGET_NAME, createEmptyBudget());
-          return { ...current, activeId: entry.id, budgets: [entry] };
-        }
-        const activeId = remaining.some((b) => b.id === current.activeId)
-          ? current.activeId
-          : remaining[0].id;
-        return { ...current, activeId, budgets: remaining };
-      }),
-    [setStored],
+    (id: string): boolean => {
+      if (!removeBudget(store, id)) return false;
+      setStored((prev) => removeBudget(readStore(prev), id) ?? readStore(prev));
+      return true;
+    },
+    [setStored, store],
+  );
+
+  /** Empties the active budget, keeping its name and its place in the list. */
+  const resetBudget = useCallback(
+    () => setBudget(() => createEmptyBudget()),
+    [setBudget],
   );
 
   const exportJson = useCallback(() => {
@@ -233,6 +241,7 @@ export function useBudget() {
     switchBudget,
     createBudget,
     deleteBudget,
+    resetBudget,
     exportJson,
     importJson,
     activeBudgetName,

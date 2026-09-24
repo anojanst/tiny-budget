@@ -1,54 +1,68 @@
 import { useColorScheme } from 'react-native';
 
 /**
- * Soft and light by default, with saturation spent only where it carries
- * meaning: the brand band at the top, and the three states of the headline
- * figure. Everything else is white cards on a pale ground and pastel washes
- * behind icons, so the screen stays calm even when the news on it is not.
+ * Yellow and black, on warm white.
  *
- * The state colours are tints rather than alarms on purpose. This app tells
- * people they run out of money on the 14th; it should do that clearly without
- * shouting, because the shortfall state is common, not exceptional.
+ * Yellow is a field colour, never an ink. Black on yellow is one of the
+ * highest-contrast pairs there is; yellow on white is one of the worst, and
+ * four places in this app used the brand colour as text or as an icon on a
+ * pale ground. `brandInk` exists for those — a dark amber that reads as the
+ * same identity but is legible where the yellow is not. If you find yourself
+ * writing `color: p.brand`, you almost certainly want `p.brandInk`.
+ *
+ * Everything else stays quiet: white cards on a warm ground, pastel washes
+ * behind icons. The state colours are tints rather than alarms on purpose.
+ * This app sometimes tells people they run out of money on the 14th, and it
+ * should do that clearly without shouting — the shortfall is common, not
+ * exceptional.
  */
 const light = {
-  /** The brand band behind the top of the screen. */
-  brand: '#3B74F6',
-  brandDeep: '#2554D8',
-  onBrand: '#FFFFFF',
-  onBrandMuted: '#C7D8FF',
-  brandWash: '#E9F0FF',
+  /** The brand band. A field to put black on, never a colour to write in. */
+  brand: '#FFCB45',
+  brandDeep: '#F2A007',
+  /** Dark amber: the brand identity where it has to survive on white. */
+  brandInk: '#8A5800',
+  onBrand: '#1A1A17',
+  onBrandMuted: '#6E5512',
+  brandWash: '#FFF4D9',
 
-  page: '#F4F7FD',
+  page: '#FAF8F2',
   surface: '#FFFFFF',
-  line: '#EAEEF6',
-  text: '#16203A',
-  muted: '#727E99',
+  line: '#EDE9E0',
+  text: '#1A1A17',
+  muted: '#77726A',
 
+  /**
+   * The three states. Each is dark enough to clear 4.5:1 on white, because
+   * the line they colour is 12pt — the most important sentence on the screen
+   * is also the smallest, and a cheerful mid-tone green fails it.
+   */
   /** Money arriving, and a balance that is comfortably clear. */
-  mint: '#17A47A',
-  mintWash: '#E4F5EF',
+  mint: '#0E7F5C',
+  mintWash: '#E2F3EC',
   /** Getting thin — a warning that is not yet a failure. */
-  peach: '#E08A3C',
-  peachWash: '#FDF0E1',
+  peach: '#9E5210',
+  peachWash: '#FAEBDC',
   /** Under. */
-  rose: '#E2606B',
-  roseWash: '#FDEBEC',
+  rose: '#C43F3B',
+  roseWash: '#FBE9E8',
   /** A neutral wash for the quiet action. */
-  slateWash: '#EEF1F7',
+  slateWash: '#F1EEE6',
 };
 
 const dark: typeof light = {
-  brand: '#4C82FF',
-  brandDeep: '#2B57C9',
-  onBrand: '#FFFFFF',
-  onBrandMuted: '#BFD3FF',
-  brandWash: '#182541',
+  brand: '#F5B72E',
+  brandDeep: '#D9930A',
+  brandInk: '#F0B93F',
+  onBrand: '#1A1A17',
+  onBrandMuted: '#5E4A12',
+  brandWash: '#3A2E12',
 
-  page: '#0E1424',
-  surface: '#182033',
-  line: '#26304A',
-  text: '#EAEFF9',
-  muted: '#93A0BC',
+  page: '#14130F',
+  surface: '#1F1D18',
+  line: '#312D25',
+  text: '#F2EFE7',
+  muted: '#A19B8F',
 
   mint: '#43CFA1',
   mintWash: '#14302A',
@@ -56,7 +70,7 @@ const dark: typeof light = {
   peachWash: '#33261A',
   rose: '#F58089',
   roseWash: '#361D22',
-  slateWash: '#222C44',
+  slateWash: '#282520',
 };
 
 export type Palette = typeof light;

@@ -6,6 +6,7 @@ import {
   parseImport,
   readBudget,
   readStore,
+  removeBudget,
 } from './store';
 import { toDateInputValue } from './dates';
 
@@ -310,5 +311,52 @@ describe('the storage key', () => {
     // This test exists because the name *did* change, and the next person to
     // tidy up stray "tiny-budget" strings will find this one too.
     expect(STORAGE_KEY).toBe('tiny-budget:v1');
+  });
+});
+
+describe('removeBudget', () => {
+  const store = (...names: string[]) =>
+    readStore({
+      version: 11,
+      activeId: 'b0',
+      budgets: names.map((name, i) => ({ id: `b${i}`, name, budget: legacyBudget })),
+    });
+
+  it('removes one of several and keeps the rest', () => {
+    const next = removeBudget(store('Household', 'Flat'), 'b1');
+    expect(next?.budgets.map((b) => b.name)).toEqual(['Household']);
+  });
+
+  it('moves the selection when the active budget is the one going', () => {
+    const next = removeBudget(store('Household', 'Flat'), 'b0');
+    expect(next?.activeId).toBe('b1');
+  });
+
+  it('leaves the selection alone otherwise', () => {
+    const next = removeBudget(store('Household', 'Flat', 'What if'), 'b2');
+    expect(next?.activeId).toBe('b0');
+  });
+
+  /**
+   * The whole point. Emptying the list would not surface as an error —
+   * `readStore` repairs an empty list by inventing a budget, so the delete
+   * would come back as a nameless new one and look like it had worked.
+   */
+  it('refuses to remove the only budget', () => {
+    expect(removeBudget(store('Household'), 'b0')).toBeNull();
+  });
+
+  it('refuses an id that is not there, rather than quietly doing nothing', () => {
+    expect(removeBudget(store('Household', 'Flat'), 'nope')).toBeNull();
+  });
+
+  it('never returns a store with no budgets in it', () => {
+    for (const count of [1, 2, 3]) {
+      const s = store(...Array.from({ length: count }, (_, i) => `b${i}`));
+      for (const entry of s.budgets) {
+        const next = removeBudget(s, entry.id);
+        if (next) expect(next.budgets.length).toBeGreaterThan(0);
+      }
+    }
   });
 });

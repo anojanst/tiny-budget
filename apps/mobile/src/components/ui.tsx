@@ -43,7 +43,7 @@ export function SectionTitle({
       </View>
       {action ? (
         <Pressable accessibilityRole="button" onPress={action.onPress} hitSlop={8}>
-          <Text style={[t.label, { color: p.brand, fontWeight: '600' }]}>{action.label}</Text>
+          <Text style={[t.label, { color: p.brandInk, fontWeight: '600' }]}>{action.label}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -84,7 +84,7 @@ export function MovementRow({
     tint === 'mint' ? p.mint
     : tint === 'peach' ? p.peach
     : tint === 'rose' ? p.rose
-    : tint === 'brand' ? p.brand
+    : tint === 'brand' ? p.brandInk
     : p.muted;
   const amountColor = amountTone === 'in' ? p.mint : amountTone === 'bad' ? p.rose : p.text;
   return (
@@ -224,7 +224,8 @@ export function QuickAction({
   const p = usePalette();
   const wash =
     tint === 'mint' ? p.mintWash : tint === 'peach' ? p.peachWash : tint === 'brand' ? p.brandWash : p.slateWash;
-  const ink = tint === 'mint' ? p.mint : tint === 'peach' ? p.peach : tint === 'brand' ? p.brand : p.muted;
+  const ink =
+    tint === 'mint' ? p.mint : tint === 'peach' ? p.peach : tint === 'brand' ? p.brandInk : p.muted;
   return (
     <Pressable
       accessibilityRole="button"
