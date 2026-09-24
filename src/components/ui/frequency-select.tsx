@@ -1,6 +1,6 @@
 import { Select } from '@base-ui/react/select';
 import { cn } from '@/lib/utils';
-import type { Frequency } from '@tiny-budget/core';
+import type { Frequency } from '@money-ahead/core';
 import { Check, ChevronDown } from 'lucide-react';
 
 /**

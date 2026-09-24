@@ -1,5 +1,5 @@
 {
-  "name": "tiny-budget",
+  "name": "money-ahead",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,7 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "mobile": "npm run start --workspace @tiny-budget/mobile"
+    "mobile": "npm run start --workspace @money-ahead/mobile"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

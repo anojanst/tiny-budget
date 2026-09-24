@@ -1,4 +1,4 @@
-# tiny-budget
+# Money Ahead
 
 A cash calendar, on the web and on a phone. Enter what comes in and what goes out, give each one a date,
 and see what you're actually left holding on any day of the month.
@@ -84,7 +84,7 @@ src/            the web app (Vite + React + Tailwind)
 apps/mobile/    the phone app (Expo + React Native)
 ```
 
-`@tiny-budget/core` imports no React, no bundler alias and no browser global,
+`@money-ahead/core` imports no React, no bundler alias and no browser global,
 so the same source runs in both clients and in a plain Node test run. Seeded
 with the same budget, both print the same figures. Each client brings only its
 own storage: `localStorage` on the web, `AsyncStorage` on the phone.

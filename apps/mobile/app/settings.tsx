@@ -10,7 +10,7 @@ import { space, usePalette } from '../src/theme';
 /** Keeps a budget name usable as a filename without renaming it beyond recognition. */
 function fileNameFor(name: string): string {
   const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  return `tiny-budget-${slug || 'budget'}.json`;
+  return `money-ahead-${slug || 'budget'}.json`;
 }
 
 export default function SettingsScreen() {

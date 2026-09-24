@@ -1,4 +1,4 @@
-# Tiny Budget — mobile
+# Money Ahead — mobile
 
 The phone client. Same money engine as the web app, different interface.
 
@@ -15,7 +15,7 @@ Releases are built and published free by GitHub Actions — see
 
 ## What is shared, and what is not
 
-Everything about money comes from `@tiny-budget/core` and is byte-identical to
+Everything about money comes from `@money-ahead/core` and is byte-identical to
 the web app's: the dated cashflow projection, weekly normalisation, and the
 migration chain that reads an old stored budget. Seeded with the same data,
 both clients print the same figures — that is the point of the split, and the
@@ -139,7 +139,7 @@ picked up again by Import, or opened by the web app. Import takes any file
 and lets `parseImport` judge it, because a picker that refuses the user's
 actual backup is worse than one that lets them pick the wrong file.
 
-Both sides live in `@tiny-budget/core` (`buildExport` / `parseImport`), so a
+Both sides live in `@money-ahead/core` (`buildExport` / `parseImport`), so a
 phone export opens on the web and a web export opens on the phone by
 construction rather than by agreement. An import always arrives as an
 *additional* budget; nothing already on the phone is replaced.

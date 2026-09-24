@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CURRENT_VERSION, buildExport, parseImport, readBudget, readStore } from './store';
+import {
+  CURRENT_VERSION,
+  STORAGE_KEY,
+  buildExport,
+  parseImport,
+  readBudget,
+  readStore,
+} from './store';
 import { toDateInputValue } from './dates';
 
 /**
@@ -219,7 +226,7 @@ describe('parseImport', () => {
 
   it('migrates an export written before goals and debts were retired', () => {
     const old = JSON.stringify({
-      app: 'tiny-budget',
+      app: 'money-ahead',
       version: 7,
       name: 'Old phone',
       budget: {
@@ -252,7 +259,7 @@ describe('parseImport', () => {
     const result = parseImport(JSON.stringify({ hello: 'world' }), AT);
     expect(result).toEqual({
       ok: false,
-      error: "That file doesn't look like a Tiny Budget export.",
+      error: "That file doesn't look like a Money Ahead export.",
     });
   });
 
@@ -260,7 +267,7 @@ describe('parseImport', () => {
     const future = JSON.stringify({ version: CURRENT_VERSION + 1, budget: legacyBudget });
     expect(parseImport(future, AT)).toEqual({
       ok: false,
-      error: 'That file was made by a newer version of Tiny Budget.',
+      error: 'That file was made by a newer version of Money Ahead.',
     });
   });
 
@@ -290,5 +297,18 @@ describe('parseImport', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.name).toBe('Imported budget');
+  });
+});
+
+describe('the storage key', () => {
+  it('is still the pre-rename one', () => {
+    // The app was called Tiny Budget when people started using it, and every
+    // budget on every device is stored under that key. Renaming it does not
+    // migrate anyone — it hands them an empty app and leaves what they typed
+    // orphaned under a key nothing reads, with no error anywhere.
+    //
+    // This test exists because the name *did* change, and the next person to
+    // tidy up stray "tiny-budget" strings will find this one too.
+    expect(STORAGE_KEY).toBe('tiny-budget:v1');
   });
 });

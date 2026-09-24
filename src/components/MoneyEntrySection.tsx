@@ -1,4 +1,4 @@
-import { formatCurrency, type Frequency, type MoneyEntry } from '@tiny-budget/core';
+import { formatCurrency, type Frequency, type MoneyEntry } from '@money-ahead/core';
 import { useState } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

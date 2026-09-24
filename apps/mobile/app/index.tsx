@@ -14,7 +14,7 @@ import {
   toDateInputValue,
   weeksBetween,
   type CalendarDay,
-} from '@tiny-budget/core';
+} from '@money-ahead/core';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBudgetContext } from '../src/budgetContext';
 import { MonthFlow } from '../src/components/MonthFlow';

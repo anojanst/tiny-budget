@@ -1,5 +1,5 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { formatCurrency } from '@tiny-budget/core';
+import { formatCurrency } from '@money-ahead/core';
 import { useBudgetContext } from '../src/budgetContext';
 import { AddEntry, EntryRow } from '../src/components/EntryEditor';
 import { OneOffSection } from '../src/components/OneOffSection';

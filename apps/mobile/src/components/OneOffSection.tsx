@@ -7,7 +7,7 @@ import {
   toDateInputValue,
   type OneOff,
   type OneOffDirection,
-} from '@tiny-budget/core';
+} from '@money-ahead/core';
 import { DateField } from './DateField';
 import { Button, Card, Empty, Field, SectionTitle } from './ui';
 import { space, usePalette } from '../theme';

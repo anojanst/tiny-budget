@@ -1,5 +1,5 @@
 import { useRef, type CSSProperties } from 'react';
-import { toDateInputValue } from '@tiny-budget/core';
+import { toDateInputValue } from '@money-ahead/core';
 import { DateFieldShell, type DateFieldProps } from './dateFieldShell';
 
 /**

@@ -21,7 +21,7 @@ import {
   type OneOff,
   type OneOffDirection,
   type StoredState,
-} from '@tiny-budget/core';
+} from '@money-ahead/core';
 
 export function useBudget() {
   const [stored, setStored] = useLocalStorage<StoredState>(STORAGE_KEY, initialStoredState);

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Platform } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { parseLocalDate, startOfToday, toDateInputValue } from '@tiny-budget/core';
+import { parseLocalDate, startOfToday, toDateInputValue } from '@money-ahead/core';
 import { DateFieldShell, type DateFieldProps } from './dateFieldShell';
 
 /**

@@ -2,8 +2,9 @@ import { useEffect } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import { DEFAULT_THEME_ID, findTheme, themeCss } from '@/lib/themes';
 
+// Still the old name on purpose — see STORAGE_KEY in packages/core/src/store.ts.
 const STORAGE_KEY = 'tiny-budget:theme';
-const STYLE_ELEMENT_ID = 'tiny-budget-theme';
+const STYLE_ELEMENT_ID = 'money-ahead-theme';
 
 /**
  * Theme choice is a display preference, not budget data — it lives under its

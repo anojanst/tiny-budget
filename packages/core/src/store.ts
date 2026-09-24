@@ -20,6 +20,10 @@ import {
   type OneOff,
 } from './types';
 
+// Deliberately still the old name. This is the key every existing budget is
+// stored under; renaming it would not migrate anyone, it would silently hand
+// them an empty app and leave their data orphaned under a key nothing reads.
+// It is invisible to users, so there is nothing to gain and a budget to lose.
 export const STORAGE_KEY = 'tiny-budget:v1';
 export const CURRENT_VERSION = 11;
 
@@ -336,7 +340,7 @@ export function parseImport(text: string, today = startOfToday()): ImportResult 
     return { ok: false, error: "That file isn't valid JSON." };
   }
   if (!parsed || typeof parsed !== 'object') {
-    return { ok: false, error: "That file doesn't look like a Tiny Budget export." };
+    return { ok: false, error: "That file doesn't look like a Money Ahead export." };
   }
   const envelope = parsed as { version?: unknown; budget?: unknown; name?: unknown };
   if (
@@ -344,10 +348,10 @@ export function parseImport(text: string, today = startOfToday()): ImportResult 
     !envelope.budget ||
     typeof envelope.budget !== 'object'
   ) {
-    return { ok: false, error: "That file doesn't look like a Tiny Budget export." };
+    return { ok: false, error: "That file doesn't look like a Money Ahead export." };
   }
   if (envelope.version > CURRENT_VERSION) {
-    return { ok: false, error: 'That file was made by a newer version of Tiny Budget.' };
+    return { ok: false, error: 'That file was made by a newer version of Money Ahead.' };
   }
   // readBudget falls back to an empty budget for anything it can't parse, so a
   // file that reads as blank but wasn't is a failure, not an import.
@@ -369,7 +373,7 @@ export function parseImport(text: string, today = startOfToday()): ImportResult 
 /** The envelope both clients write, so an export from either imports into either. */
 export function buildExport(name: string, budget: Budget): string {
   return JSON.stringify(
-    { app: 'tiny-budget', version: CURRENT_VERSION, exportedAt: new Date().toISOString(), name, budget },
+    { app: 'money-ahead', version: CURRENT_VERSION, exportedAt: new Date().toISOString(), name, budget },
     null,
     2,
   );

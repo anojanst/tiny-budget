@@ -1,4 +1,4 @@
-import { EXPENSE_CATEGORIES, formatCurrency, INCOME_CATEGORIES } from '@tiny-budget/core';
+import { EXPENSE_CATEGORIES, formatCurrency, INCOME_CATEGORIES } from '@money-ahead/core';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

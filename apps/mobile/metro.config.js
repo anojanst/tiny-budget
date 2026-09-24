@@ -8,7 +8,7 @@ const config = getDefaultConfig(projectRoot);
 
 // Metro only watches the app folder by default, so the shared package would
 // read as a missing module. Watching the workspace root and resolving modules
-// from both places lets `@tiny-budget/core` be consumed as TypeScript source,
+// from both places lets `@money-ahead/core` be consumed as TypeScript source,
 // exactly as the web app consumes it — no build step, no stale artifact.
 config.watchFolders = [workspaceRoot];
 config.resolver.nodeModulesPaths = [

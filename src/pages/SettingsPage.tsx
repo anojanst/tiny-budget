@@ -1,4 +1,4 @@
-import { WEEKS_PER_MONTH, type NamedBudget } from '@tiny-budget/core';
+import { WEEKS_PER_MONTH, type NamedBudget } from '@money-ahead/core';
 import { useRef, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,7 +60,7 @@ export function SettingsPage({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `tiny-budget-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `money-ahead-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     // Revoking immediately can cancel the download in some browsers.
     setTimeout(() => URL.revokeObjectURL(url), 1000);

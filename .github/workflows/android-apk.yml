@@ -128,7 +128,7 @@ jobs:
       - name: Test and typecheck
         run: |
           npm test
-          npm --workspace @tiny-budget/mobile run typecheck
+          npm --workspace @money-ahead/mobile run typecheck
 
       # The android/ project is generated rather than committed, so it always
       # matches app.json instead of drifting from it.
@@ -211,15 +211,15 @@ jobs:
             --ks-pass "pass:$STORE_PASSWORD" \
             --ks-key-alias "$KEY_ALIAS" \
             --key-pass "pass:$KEY_PASSWORD" \
-            --out tiny-budget.apk \
+            --out money-ahead.apk \
             "$RUNNER_TEMP/aligned.apk"
-          "$BUILD_TOOLS/apksigner" verify --print-certs tiny-budget.apk
+          "$BUILD_TOOLS/apksigner" verify --print-certs money-ahead.apk
           rm -f "$KS"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: tiny-budget-apk
-          path: tiny-budget.apk
+          name: money-ahead-apk
+          path: money-ahead.apk
           if-no-files-found: error
 
       # The distribution list. A GitHub Release is a link anyone can find;
@@ -267,7 +267,7 @@ jobs:
           { echo "$GITHUB_REF_NAME"; echo; git log -1 --pretty=%s; } > "$NOTES"
 
           GOOGLE_APPLICATION_CREDENTIALS="$KEY" \
-            npx --yes firebase-tools@15 appdistribution:distribute tiny-budget.apk \
+            npx --yes firebase-tools@15 appdistribution:distribute money-ahead.apk \
               --app "$FIREBASE_APP_ID" \
               --testers-file "$LIST" \
               --release-notes-file "$NOTES"
@@ -276,10 +276,10 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: tiny-budget.apk
+          files: money-ahead.apk
           generate_release_notes: true
           body: |
-            Download `tiny-budget.apk` below and open it on your phone.
+            Download `money-ahead.apk` below and open it on your phone.
 
             Android will warn that it came from outside the Play Store — that
             warning is about the source, not the file. Allow installs for

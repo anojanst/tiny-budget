@@ -1,4 +1,4 @@
-import { EXPENSE_CATEGORIES, formatCurrency, INCOME_CATEGORIES, toDateInputValue, toWeeklyAmount, type Frequency, type IncomeStream, type MoneyEntry } from '@tiny-budget/core';
+import { EXPENSE_CATEGORIES, formatCurrency, INCOME_CATEGORIES, toDateInputValue, toWeeklyAmount, type Frequency, type IncomeStream, type MoneyEntry } from '@money-ahead/core';
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -86,7 +86,7 @@ export function OnboardingWizard({
             <PiggyBank className="size-5" />
           </span>
           <div>
-            <h1 className="text-lg font-semibold tracking-tight">Tiny Budget</h1>
+            <h1 className="text-lg font-semibold tracking-tight">Money Ahead</h1>
             <p className="text-sm text-muted-foreground">
               A calendar of what lands when, and what it leaves you.
             </p>

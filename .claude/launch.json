@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "tiny-budget",
+      "name": "money-ahead",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
@@ -11,7 +11,7 @@
       "port": 5173
     },
     {
-      "name": "tiny-budget-mobile",
+      "name": "money-ahead-mobile",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
         "expo",

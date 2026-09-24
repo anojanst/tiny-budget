@@ -87,7 +87,7 @@ export function Sidebar({ route, onNavigate, entryCount, footer, switcher }: Sid
           >
             <PiggyBank className="size-4.5" />
           </span>
-          <span className="text-base font-semibold tracking-tight">Tiny Budget</span>
+          <span className="text-base font-semibold tracking-tight">Money Ahead</span>
         </div>
         {switcher && <div className="mt-3">{switcher}</div>}
       </div>

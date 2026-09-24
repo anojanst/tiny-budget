@@ -11,6 +11,10 @@
 # process list.
 set -euo pipefail
 
+# Both keep the old name. The keystore is the app's signing identity, not its
+# branding: the file already exists under this name, and the alias inside it
+# cannot be renamed at all. Changing either here would only make the docs
+# describe a file nobody has.
 KEYSTORE="${1:-tiny-budget.keystore}"
 ALIAS="${2:-tiny-budget}"
 

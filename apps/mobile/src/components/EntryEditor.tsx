@@ -7,7 +7,7 @@ import {
   toWeeklyAmount,
   type Frequency,
   type MoneyEntry,
-} from '@tiny-budget/core';
+} from '@money-ahead/core';
 import { DateField } from './DateField';
 import { Button, Card, Field } from './ui';
 import { radius, space, usePalette } from '../theme';

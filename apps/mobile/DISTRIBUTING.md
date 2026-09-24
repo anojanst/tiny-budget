@@ -15,7 +15,7 @@ Every Android app is signed, and the signature is the app's identity. Keep
 this file safe **forever** — see the warning at the bottom.
 
 ```bash
-npm run keystore --workspace @tiny-budget/mobile
+npm run keystore --workspace @money-ahead/mobile
 ```
 
 It asks for a password and some identity fields; the fields can be anything,
@@ -73,7 +73,7 @@ Then tag:
 git tag mobile-v1.1.0 && git push --tags
 ```
 
-The workflow tests, typechecks, builds, signs, and attaches `tiny-budget.apk`
+The workflow tests, typechecks, builds, signs, and attaches `money-ahead.apk`
 to a new GitHub Release. Anyone can download it from the Releases page.
 
 `workflow_dispatch` runs the same build without publishing, leaving the APK as
@@ -145,7 +145,7 @@ Only you can do this part — it creates an account and a credential.
 
 1. At <https://console.firebase.google.com> create a project (no Analytics
    needed), then **Add app → Android** with the package name
-   `com.tinybudget.app`. Skip the `google-services.json` download: this app
+   `com.moneyahead.app`. Skip the `google-services.json` download: this app
    does not use any Firebase SDK, only the upload service.
 2. Open **Release & Monitor → App Distribution** once and accept the terms.
    Distribution fails until that has been done by hand.

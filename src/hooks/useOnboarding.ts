@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 
+// Still the old name on purpose — see STORAGE_KEY in packages/core/src/store.ts.
+// Renaming it would replay the wizard for everyone who has already done it.
 const STORAGE_KEY = 'tiny-budget:onboarding';
 
 /**

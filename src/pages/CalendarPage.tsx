@@ -1,4 +1,4 @@
-import { addMonths, buildCashflowDays, endOfMonth, formatCurrency, formatMonthYear, formatShortDate, isSameDay, startOfMonth, toDateInputValue } from '@tiny-budget/core';
+import { addMonths, buildCashflowDays, endOfMonth, formatCurrency, formatMonthYear, formatShortDate, isSameDay, startOfMonth, toDateInputValue } from '@money-ahead/core';
 import { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

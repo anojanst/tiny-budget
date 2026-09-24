@@ -20,13 +20,13 @@ import {
   type OneOff,
   type OneOffDirection,
   type StoredState,
-} from '@tiny-budget/core';
+} from '@money-ahead/core';
 
 /**
  * The React binding over the shared store.
  *
  * Every rule about money — what a budget is, how an old one migrates, what a
- * week is worth — comes from `@tiny-budget/core` and is identical to the web
+ * week is worth — comes from `@money-ahead/core` and is identical to the web
  * app's. What lives here is only the React and AsyncStorage plumbing.
  */
 export function useBudget() {

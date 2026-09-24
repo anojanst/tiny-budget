@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { formatCurrency, type CalendarDay } from '@tiny-budget/core';
+import { formatCurrency, type CalendarDay } from '@money-ahead/core';
 import { space, type as t, usePalette } from '../theme';
 
 /**

@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "Tiny Budget",
-    "slug": "tiny-budget",
-    "version": "1.1.0",
+    "name": "Money Ahead",
+    "slug": "money-ahead",
+    "version": "1.2.0",
     "orientation": "portrait",
-    "scheme": "tinybudget",
+    "scheme": "moneyahead",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tinybudget.app"
+      "bundleIdentifier": "com.moneyahead.app"
     },
     "android": {
-      "package": "com.tinybudget.app",
-      "versionCode": 2,
+      "package": "com.moneyahead.app",
+      "versionCode": 3,
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"

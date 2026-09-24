@@ -1,4 +1,4 @@
-import { formatCurrency, formatShortDate, isEntryActive, isLumpySchedule, nextDueOccurrence, toWeeklyAmount, weeksBetween, type Frequency, type MoneyEntry } from '@tiny-budget/core';
+import { formatCurrency, formatShortDate, isEntryActive, isLumpySchedule, nextDueOccurrence, toWeeklyAmount, weeksBetween, type Frequency, type MoneyEntry } from '@money-ahead/core';
 import { memo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';

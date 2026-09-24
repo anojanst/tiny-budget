@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { formatShortDate, parseLocalDate } from '@tiny-budget/core';
+import { formatShortDate, parseLocalDate } from '@money-ahead/core';
 import { radius, space, type as t, usePalette } from '../theme';
 
 export interface DateFieldProps {
