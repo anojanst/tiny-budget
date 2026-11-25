@@ -74,6 +74,15 @@ export default function CalendarScreen() {
     return out;
   }, [visibleMonth]);
 
+  // Explicit rows of seven, each cell flex: 1. A wrapping grid of 100/7%
+  // cells relies on seven rounded widths fitting the row, and on some
+  // densities (the S26 Ultra) they overflow by a pixel and Sunday wraps.
+  const weeks = useMemo(() => {
+    const out: Date[][] = [];
+    for (let i = 0; i < cells.length; i += 7) out.push(cells.slice(i, i + 7));
+    return out;
+  }, [cells]);
+
   const monthDays = days.filter(
     (d) =>
       d.date.getMonth() === visibleMonth.getMonth() &&
@@ -287,49 +296,53 @@ export default function CalendarScreen() {
             </Text>
           ))}
         </View>
-        <View style={styles.grid}>
-          {cells.map((date) => {
-            const key = toDateInputValue(date);
-            const entry = byKey.get(key);
-            const inMonth = date.getMonth() === visibleMonth.getMonth();
-            const isToday = isSameDay(date, today);
-            const isPast = date.getTime() < today.getTime();
-            const moneyIn = !!entry && (entry.isPayday || entry.credits.length > 0);
-            const moneyOut = !!entry && entry.bills.length > 0;
-            const isSelected = selected === key;
-            return (
-              <Pressable
-                key={key}
-                accessibilityRole="button"
-                accessibilityLabel={`${formatShortDate(date)}${
-                  entry ? `, balance ${formatCurrency(entry.balance)}` : ''
-                }`}
-                onPress={() => setSelected(isSelected ? null : key)}
-                style={[
-                  styles.cell,
-                  entry?.short && { backgroundColor: p.roseWash },
-                  isSelected && { backgroundColor: p.brandWash, borderColor: p.brandInk },
-                  isToday && { borderColor: p.text },
-                ]}
-              >
-                <Text
+        {weeks.map((week) => (
+          <View key={toDateInputValue(week[0])} style={styles.grid}>
+            {week.map((date) => {
+              const key = toDateInputValue(date);
+              const entry = byKey.get(key);
+              const inMonth = date.getMonth() === visibleMonth.getMonth();
+              const isToday = isSameDay(date, today);
+              const isPast = date.getTime() < today.getTime();
+              const moneyIn = !!entry && (entry.isPayday || entry.credits.length > 0);
+              const moneyOut = !!entry && entry.bills.length > 0;
+              const isSelected = selected === key;
+              return (
+                <Pressable
+                  key={key}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${formatShortDate(date)}${
+                    entry ? `, balance ${formatCurrency(entry.balance)}` : ''
+                  }`}
+                  onPress={() => setSelected(isSelected ? null : key)}
                   style={[
-                    t.small,
-                    styles.cellDate,
-                    { color: inMonth ? (isPast ? p.muted : p.text) : 'transparent' },
-                    isToday && { fontWeight: '700' },
+                    styles.cell,
+                    entry?.short && { backgroundColor: p.roseWash },
+                    isSelected && { backgroundColor: p.brandWash, borderColor: p.brandInk },
+                    isToday && { borderColor: p.text },
                   ]}
                 >
-                  {date.getDate()}
-                </Text>
-                <View style={styles.dots}>
-                  {moneyIn && !isPast && <View style={[styles.dot, { backgroundColor: p.mint }]} />}
-                  {moneyOut && !isPast && <View style={[styles.dot, { backgroundColor: p.muted }]} />}
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
+                  <Text
+                    style={[
+                      t.small,
+                      styles.cellDate,
+                      { color: isPast ? p.muted : p.text },
+                      isToday && { fontWeight: '700' },
+                    ]}
+                  >
+                    {/* Omitted rather than coloured transparent: some devices'
+                        contrast settings draw transparent text anyway. */}
+                    {inMonth ? date.getDate() : ''}
+                  </Text>
+                  <View style={styles.dots}>
+                    {moneyIn && !isPast && <View style={[styles.dot, { backgroundColor: p.mint }]} />}
+                    {moneyOut && !isPast && <View style={[styles.dot, { backgroundColor: p.muted }]} />}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
         {selected && byKey.get(selected) ? (
           <Text style={[t.label, styles.selectedLine, { color: p.text, borderTopColor: p.line }]}>
             {formatDayMonth(byKey.get(selected)!.date)} — {formatCurrency(byKey.get(selected)!.balance)} left
@@ -401,9 +414,9 @@ const styles = StyleSheet.create({
   quickCard: { flexDirection: 'row', gap: space.sm, paddingVertical: space.lg },
   weekRow: { flexDirection: 'row' },
   weekday: { flex: 1, textAlign: 'center', fontWeight: '600' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  grid: { flexDirection: 'row' },
   cell: {
-    width: `${100 / 7}%`,
+    flex: 1,
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
